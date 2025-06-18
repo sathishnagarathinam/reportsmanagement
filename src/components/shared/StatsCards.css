@@ -1,0 +1,46 @@
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  padding: 20px;
+}
+
+.stat-card {
+  padding: 20px;
+  border-radius: 12px;
+  color: white;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-5px);
+}
+
+/* Professional Colors - Increased Specificity */
+.stat-card.card-0 {
+  background-color: #70b6d6; /* Blue Gray */
+}
+
+.stat-card.card-1 {
+  background-color: #3F51B5; /* Indigo */
+}
+
+.stat-card.card-2 {
+  background-color: #009688; /* Teal */
+}
+
+.stat-card.card-3 {
+  background-color: #c95dd5; /* Deep Orange */
+}
+
+.stat-card h3 {
+  font-size: 1.1rem;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
