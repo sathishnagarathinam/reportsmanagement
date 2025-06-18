@@ -637,7 +637,7 @@ const PageBuilder: React.FC = () => {
         <div className="card-header d-flex justify-content-between align-items-center"> {/* Added card-header and flex classes */}
             <strong>{field.label || 'Unnamed Field'}</strong> ({field.type}) {/* Added default label */}
             <button onClick={() => removeField(index)} className="btn btn-danger btn-sm"> {/* Added btn, btn-danger, btn-sm classes */}
-              <FaTrash /> Remove
+              {React.createElement(FaTrash as React.ComponentType<any>)} Remove
             </button>
         </div>
         <div className="card-body"> {/* Added card-body class */}
@@ -1001,14 +1001,14 @@ const PageBuilder: React.FC = () => {
                     className="edit-button btn btn-outline-primary btn-sm me-2"
                     disabled={!selectedCard}
                     >
-                    <FaEdit /> Edit Name
+                    {React.createElement(FaEdit as React.ComponentType<any>)} Edit Name
                     </button>
                     <button
                     onClick={() => handleDeleteClick(selectedCard)}
                     className="delete-button btn btn-outline-danger btn-sm"
                     disabled={!selectedCard}
                     >
-                    <FaTrash /> Delete Report
+                    {React.createElement(FaTrash as React.ComponentType<any>)} Delete Report
                     </button>
                 </div>
             </div>
@@ -1026,9 +1026,9 @@ const PageBuilder: React.FC = () => {
                   <button onClick={() => removeField(index)} className="btn btn-danger btn-sm mt-2">Remove This Field</button>
                 </div>
               ))}
-              <button onClick={addField} className="btn btn-info mt-3"><FaPlus /> Add Field</button>
+              <button onClick={addField} className="btn btn-info mt-3">{React.createElement(FaPlus as React.ComponentType<any>)} Add Field</button>
               <button onClick={handleSave} className="btn btn-success mt-3 ms-2" disabled={loading || !pageConfig || fields.length === 0}>
-                <FaSave /> {loading ? 'Saving...' : 'Save Page Configuration'}
+                {React.createElement(FaSave as React.ComponentType<any>)} {loading ? 'Saving...' : 'Save Page Configuration'}
               </button>
               <button onClick={handlePreview} className="btn btn-secondary mt-3 ms-2" disabled={!pageConfig || fields.length === 0}>
                 Preview Page

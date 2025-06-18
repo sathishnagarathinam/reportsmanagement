@@ -40,7 +40,7 @@ const PageBuilderContent: React.FC<PageBuilderContentProps> = ({
       ))}
       
       <button onClick={onAddField} className="btn btn-info mt-3">
-        <FaPlus /> Add Field
+        {React.createElement(FaPlus as React.ComponentType<any>)} Add Field
       </button>
       
       <button 
@@ -48,7 +48,7 @@ const PageBuilderContent: React.FC<PageBuilderContentProps> = ({
         className="btn btn-success mt-3 ms-2" 
         disabled={loading || !pageConfig || fields.length === 0}
       >
-        <FaSave /> {loading ? 'Saving...' : 'Save Page Configuration'}
+        {React.createElement(FaSave as React.ComponentType<any>)} {loading ? 'Saving...' : 'Save Page Configuration'}
       </button>
       
       <button 

@@ -30,14 +30,14 @@ const CardManagement: React.FC<CardManagementProps> = ({
           className="edit-button btn btn-outline-primary btn-sm me-2"
           disabled={!selectedCard}
         >
-          <FaEdit /> Edit Name
+          {React.createElement(FaEdit as React.ComponentType<any>)} Edit Name
         </button>
         <button
           onClick={() => onDeleteCard(selectedCard)}
           className="delete-button btn btn-outline-danger btn-sm"
           disabled={!selectedCard}
         >
-          <FaTrash /> Delete Report
+          {React.createElement(FaTrash as React.ComponentType<any>)} Delete Report
         </button>
       </div>
     </div>

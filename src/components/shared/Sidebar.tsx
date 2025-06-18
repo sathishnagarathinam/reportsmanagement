@@ -45,42 +45,42 @@ const Sidebar: React.FC<SidebarProps> = ({ userData }) => {
       <nav className="nav-menu">
         {location.pathname !== '/' && (
           <a href="#" className="nav-item back" onClick={() => handleNavigation('/')}>
-            <FaArrowLeft /> <span>back to dashboard</span>
+            {React.createElement(FaArrowLeft as React.ComponentType<any>)} <span>back to dashboard</span>
           </a>
         )}
         <a href="#" className={`nav-item ${isActive('/') ? 'active' : ''}`} onClick={() => handleNavigation('/')}>
-          <FaHome /> <span>home</span>
+          {React.createElement(FaHome as React.ComponentType<any>)} <span>home</span>
         </a>
         <a href="#" className={`nav-item ${isActive('/data-entry') ? 'active' : ''}`} onClick={() => handleNavigation('/data-entry')}>
-          <FaFolder /> <span>data entry</span>
+          {React.createElement(FaFolder as React.ComponentType<any>)} <span>data entry</span>
         </a>
         <a href="#" className={`nav-item ${isActive('/reports') ? 'active' : ''}`} onClick={() => handleNavigation('/reports')}>
-          <FaEnvelope /> <span>reports</span>
+          {React.createElement(FaEnvelope as React.ComponentType<any>)} <span>reports</span>
         </a>
         <a href="#" className={`nav-item ${isActive('/profile') ? 'active' : ''}`} onClick={() => handleNavigation('/profile')}>
-          <FaUser /> <span>profile</span>
+          {React.createElement(FaUser as React.ComponentType<any>)} <span>profile</span>
         </a>
         {userData?.role === 'master_admin' && (
           <a href="#" className={`nav-item ${isActive('/master-admin') ? 'active' : ''}`} onClick={() => handleNavigation('/master-admin')}>
-            <FaUsersCog /> <span>master admin</span>
+            {React.createElement(FaUsersCog as React.ComponentType<any>)} <span>master admin</span>
           </a>
         )}
         {userData?.role === 'admin' && (
           <a href="#" className={`nav-item ${isActive('/admin') ? 'active' : ''}`} onClick={() => handleNavigation('/admin')}>
-            <FaUsersCog /> <span>admin</span>
+            {React.createElement(FaUsersCog as React.ComponentType<any>)} <span>admin</span>
           </a>
         )}
         <a href="#" className="nav-item">
-          <FaBell /> <span>notification</span>
+          {React.createElement(FaBell as React.ComponentType<any>)} <span>notification</span>
         </a>
         <a href="#" className="nav-item">
-          <FaMapMarkerAlt /> <span>location</span>
+          {React.createElement(FaMapMarkerAlt as React.ComponentType<any>)} <span>location</span>
         </a>
         <a href="#" className="nav-item">
-          <FaChartBar /> <span>graph</span>
+          {React.createElement(FaChartBar as React.ComponentType<any>)} <span>graph</span>
         </a>
         <a href="#" className="nav-item logout" onClick={handleLogout}>
-          <FaSignOutAlt /> <span>logout</span>
+          {React.createElement(FaSignOutAlt as React.ComponentType<any>)} <span>logout</span>
         </a>
       </nav>
     </div>

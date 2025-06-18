@@ -45,7 +45,7 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
       <div className="card-header d-flex justify-content-between align-items-center">
         <strong>{field.label || 'Unnamed Field'}</strong> ({field.type})
         <button onClick={() => onRemove(index)} className="btn btn-danger btn-sm">
-          <FaTrash /> Remove
+          {React.createElement(FaTrash as React.ComponentType<any>)} Remove
         </button>
       </div>
       <div className="card-body">
