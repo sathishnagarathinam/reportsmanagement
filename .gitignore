@@ -5,7 +5,7 @@ node_modules/
 
 # Cache directories
 .cache/
-node_modules/.cache/
+*.cache/
 
 # Testing
 /coverage
@@ -13,6 +13,10 @@ node_modules/.cache/
 # Production build
 # Note: We'll include build folder for GitHub Pages deployment
 # /build
+
+# Large files and cache
+*.pack
+*.tsbuildinfo
 
 # Misc
 .DS_Store
