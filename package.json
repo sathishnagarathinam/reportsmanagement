@@ -2,7 +2,7 @@
   "name": "india-post-web-app",
   "version": "1.0.0",
   "description": "India Post Western Region Reports Management System - Web Application",
-  "homepage": "https://YOUR_USERNAME.github.io/india-post-web-app",
+  "homepage": "/",
   "main": "index.js",
   "scripts": {
     "start": "react-scripts start",
