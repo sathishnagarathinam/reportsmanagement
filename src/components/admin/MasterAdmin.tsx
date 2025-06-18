@@ -19,6 +19,9 @@ import {
   InputLabel,
   Box,
   Button,
+  Card,
+  CardContent,
+  Typography,
 } from '@mui/material';
 
 interface User {
@@ -70,7 +73,9 @@ const MasterAdmin: React.FC = () => {
   };
 
   const filteredUsers = users.filter(user =>
-    user.employeeId?.toLowerCase().includes(searchTerm.toLowerCase())
+    user.employeeId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleRoleChange = async (userId: string, newRole: string) => {
@@ -141,36 +146,137 @@ const MasterAdmin: React.FC = () => {
       <Sidebar userData={userData} />
       <div className="main-content">
         <Box sx={{ p: 3 }}>
+          <Box sx={{ mb: 3 }}>
+            <h1 style={{
+              margin: 0,
+              marginBottom: '8px',
+              color: '#1976d2',
+              fontSize: '2rem',
+              fontWeight: 'bold'
+            }}>
+              Master Admin Panel
+            </h1>
+            <p style={{
+              margin: 0,
+              color: '#666',
+              fontSize: '1rem'
+            }}>
+              Manage user roles and permissions for all employees
+            </p>
+          </Box>
+          <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
+            <Card sx={{ minWidth: 200, flex: 1 }}>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  Total Employees
+                </Typography>
+                <Typography variant="h4" component="div" color="primary">
+                  {users.length}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card sx={{ minWidth: 200, flex: 1 }}>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  Filtered Results
+                </Typography>
+                <Typography variant="h4" component="div" color="secondary">
+                  {filteredUsers.length}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card sx={{ minWidth: 200, flex: 1 }}>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  Admin Users
+                </Typography>
+                <Typography variant="h4" component="div" color="success.main">
+                  {users.filter(user => user.role === 'admin' || user.role === 'master_admin').length}
+                </Typography>
+              </CardContent>
+            </Card>
+            <Card sx={{ minWidth: 200, flex: 1 }}>
+              <CardContent>
+                <Typography color="textSecondary" gutterBottom>
+                  Regular Users
+                </Typography>
+                <Typography variant="h4" component="div" color="info.main">
+                  {users.filter(user => user.role === 'user' || !user.role).length}
+                </Typography>
+              </CardContent>
+            </Card>
+          </Box>
+
           <TextField
             fullWidth
-            label="Search by Employee ID"
+            label="Search by Employee ID, Name, or Email"
             variant="outlined"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             sx={{ mb: 3 }}
+            placeholder="Enter Employee ID, Full Name, or Email to search..."
           />
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
+          <TableContainer component={Paper} sx={{ boxShadow: 3 }}>
+            <Table sx={{ minWidth: 650 }}>
+              <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
                 <TableRow>
-                  <TableCell>Employee ID</TableCell>
-                  <TableCell>Office Name</TableCell>
-                  <TableCell>Division Name</TableCell>
-                  <TableCell>Designation</TableCell>
-                  <TableCell>Current Role</TableCell>
-                  <TableCell>New Role</TableCell>
-                  <TableCell>Actions</TableCell>
-                  <TableCell>Status</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Employee ID</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Employee Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Office Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Division Name</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Designation</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Current Role</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>New Role</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Actions</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold', color: '#1976d2' }}>Status</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>{user.employeeId}</TableCell>
+                {filteredUsers.map((user, index) => (
+                  <TableRow
+                    key={user.id}
+                    sx={{
+                      '&:nth-of-type(odd)': { backgroundColor: '#fafafa' },
+                      '&:hover': { backgroundColor: '#e3f2fd' }
+                    }}
+                  >
+                    <TableCell sx={{ fontFamily: 'monospace', fontWeight: 'bold' }}>
+                      {user.employeeId}
+                    </TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                      {user.name || 'N/A'}
+                    </TableCell>
+                    <TableCell sx={{ color: 'text.secondary' }}>
+                      {user.email}
+                    </TableCell>
                     <TableCell>{user.officeName}</TableCell>
                     <TableCell>{user.divisionName}</TableCell>
                     <TableCell>{user.designation}</TableCell>
-                    <TableCell>{user.role || 'No Role'}</TableCell>
+                    <TableCell>
+                      <Box
+                        sx={{
+                          display: 'inline-block',
+                          px: 2,
+                          py: 0.5,
+                          borderRadius: 1,
+                          fontSize: '0.875rem',
+                          fontWeight: 'bold',
+                          backgroundColor:
+                            user.role === 'master_admin' ? '#e8f5e9' :
+                            user.role === 'admin' ? '#fff3e0' :
+                            user.role === 'user' ? '#e3f2fd' : '#f5f5f5',
+                          color:
+                            user.role === 'master_admin' ? '#2e7d32' :
+                            user.role === 'admin' ? '#f57c00' :
+                            user.role === 'user' ? '#1976d2' : '#666'
+                        }}
+                      >
+                        {user.role === 'master_admin' ? 'Master Admin' :
+                         user.role === 'admin' ? 'Admin' :
+                         user.role === 'user' ? 'User' : 'No Role'}
+                      </Box>
+                    </TableCell>
                     <TableCell>
                       <FormControl fullWidth size="small">
                         <Select
