@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../shared/Sidebar';
 import StatsCards from '../shared/StatsCards';
 import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH } from 'react-icons/fa';
+import { IconType } from 'react-icons';
 import { FormFilteringService } from '../../services/formFilteringService';
 import './DataEntry.css';
 
@@ -98,7 +99,7 @@ const DataEntry: React.FC = () => {
   // Recursive function to render cards with their children
   // Modify the renderCard function to remove child card rendering
   // Add this function before renderCard
-  const getIconComponent = (title: string) => {
+  const getIconComponent = (title: string): IconType => {
     const normalizedTitle = title.toLowerCase();
     if (normalizedTitle.includes('business')) return FaBriefcase;
     if (normalizedTitle.includes('tech')) return FaLaptopCode;
@@ -168,7 +169,7 @@ const DataEntry: React.FC = () => {
         }}
       >
         <div className="category-icon" style={{ color: getIconColor(category.title) }}>
-          <IconComponent size={40} />
+          {React.createElement(IconComponent as React.ComponentType<any>, { size: 40 })}
         </div>
         <h3>{category.title}</h3>
       </div>

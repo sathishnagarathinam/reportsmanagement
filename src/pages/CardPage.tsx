@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH } from 'react-icons/fa';
+import { IconType } from 'react-icons';
 import '../components/DataEntry/DataEntry.css';
 
 interface Category {
@@ -24,7 +25,7 @@ const CardPage: React.FC = () => {
   const [parentCard, setParentCard] = useState<Category | null>(null);
   const [breadcrumb, setBreadcrumb] = useState<Category[]>([]);
 
-  const getIconComponent = (title: string) => {
+  const getIconComponent = (title: string): IconType => {
     const normalizedTitle = title.toLowerCase();
     if (normalizedTitle.includes('business')) return FaBriefcase;
     if (normalizedTitle.includes('tech')) return FaLaptopCode;
@@ -153,7 +154,7 @@ const CardPage: React.FC = () => {
         }}
       >
         <div className="category-icon" style={{ color: getIconColor(category.title) }}>
-          <IconComponent size={40} />
+          {React.createElement(IconComponent as React.ComponentType<any>, { size: 40 })}
         </div>
         <h3>{category.title}</h3>
       </div>
@@ -205,7 +206,7 @@ const CardPage: React.FC = () => {
           title={parentCard ? `Back to ${parentCard.title}` : 'Back to Dashboard'}
         >
           <div className="current-card-icon" style={{ color: getIconColor(currentCard.title) }}>
-            {React.createElement(getIconComponent(currentCard.title), { size: 60 })}
+            {React.createElement(getIconComponent(currentCard.title) as React.ComponentType<any>, { size: 60 })}
           </div>
           <h1 className="page-title">{currentCard.title}</h1>
         </div>

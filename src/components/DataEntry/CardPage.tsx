@@ -6,6 +6,7 @@ import { supabase } from '../../config/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../shared/Sidebar';
 import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH, FaLock } from 'react-icons/fa';
+import { IconType } from 'react-icons';
 import './DataEntry.css';
 import DynamicForm, { FormConfig, DynamicFormRef } from '../shared/DynamicForm'; // Import the new component and FormConfig
 import { FormFilteringService } from '../../services/formFilteringService';
@@ -344,7 +345,7 @@ const CardPage: React.FC = () => {
       FaEllipsisH
     }[iconName || 'FaEllipsisH'] || FaEllipsisH;
 
-    return <IconComponent />;
+    return React.createElement(IconComponent as React.ComponentType<any>);
   };
 
   const handleBack = () => {
@@ -447,7 +448,7 @@ const CardPage: React.FC = () => {
               </div>
             ) : accessError ? (
               <div className="access-denied">
-                <FaLock size={48} color="#ff6b6b" />
+                {React.createElement(FaLock as React.ComponentType<any>, { size: 48, color: "#ff6b6b" })}
                 <h3>Access Restricted</h3>
                 <p>{accessError}</p>
                 <button
@@ -466,7 +467,7 @@ const CardPage: React.FC = () => {
               />
             ) : (
               <div className="access-denied">
-                <FaLock size={48} color="#ff6b6b" />
+                {React.createElement(FaLock as React.ComponentType<any>, { size: 48, color: "#ff6b6b" })}
                 <h3>Access Denied</h3>
                 <p>This form is not available for your office.</p>
                 <button
