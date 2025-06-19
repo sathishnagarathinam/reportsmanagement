@@ -1,0 +1,40 @@
+.create-report-container {
+  padding: 2rem;
+}
+
+.create-report-container h1 {
+  margin-bottom: 2rem;
+  color: #333;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.category-card {
+  background: white;
+  border-radius: 10px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+}
+
+.category-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.category-icon {
+  margin-bottom: 1rem;
+  color: #2196f3;
+}
+
+.category-card h3 {
+  margin: 0;
+  color: #333;
+  font-size: 1.2rem;
+}

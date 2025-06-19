@@ -1,0 +1,30 @@
+# Ignore mobile app directory
+mobile_app_flutter/
+
+# Ignore development files
+*.log
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Ignore node_modules in root (if any)
+node_modules/
+
+# Ignore git files
+.git/
+.gitignore
+
+# Ignore documentation
+README.md
+docs/
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Only deploy web-app
+!web-app/

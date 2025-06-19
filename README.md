@@ -1,52 +1,69 @@
 # India Post Reports Management System
 
 <div align="center">
-  <img src="assets/images/Indiapost_Logo.png" alt="India Post Logo" width="200"/>
+  <img src="public/Indiapost_Logo.png" alt="India Post Logo" width="200"/>
 
   <h3>Western Region Reports Management System</h3>
-  <p>A comprehensive mobile application for India Post Western Region to streamline report management, data collection, and administrative processes.</p>
+  <p>A comprehensive cross-platform solution for India Post Western Region to streamline report management, data collection, and administrative processes.</p>
 
   [![Flutter](https://img.shields.io/badge/Flutter-3.3.0+-blue.svg)](https://flutter.dev/)
-  [![Firebase](https://img.shields.io/badge/Firebase-Latest-orange.svg)](https://firebase.google.com/)
+  [![React](https://img.shields.io/badge/React-18.2.0-blue.svg)](https://reactjs.org/)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.8.3-blue.svg)](https://www.typescriptlang.org/)
+  [![Firebase](https://img.shields.io/badge/Firebase-11.7.1-orange.svg)](https://firebase.google.com/)
   [![Supabase](https://img.shields.io/badge/Supabase-Latest-green.svg)](https://supabase.com/)
-  [![License](https://img.shields.io/badge/License-Proprietary-red.svg)](#)
+  [![Material-UI](https://img.shields.io/badge/Material--UI-7.1.0-blue.svg)](https://mui.com/)
 </div>
+
+## 🌐 Live Demo
+
+**[View Live Web Application](https://sathishnagarathinam.github.io/reportsmanagement)**
 
 ## 📱 Overview
 
-The India Post Reports Management System is a Flutter-based mobile application designed to digitize and streamline reporting processes across India Post Western Region offices. The app provides a comprehensive solution for data collection, report generation, and administrative management with role-based access control.
+The India Post Reports Management System is a comprehensive cross-platform solution featuring both a Flutter mobile application and a React web portal. It's designed to digitize and streamline reporting processes across India Post Western Region offices, providing tools for data collection, report generation, and administrative management with role-based access control.
+
+### 📱 Mobile App (Flutter)
+A feature-rich mobile application for field users, office staff, and administrators to manage forms, submit reports, and track progress on-the-go.
+
+### 🌐 Web Portal (React)
+A comprehensive web-based administrative portal for division users and administrators to manage forms, generate reports, and oversee operations across multiple offices.
 
 ## ✨ Key Features
 
 ### 🔐 Authentication & User Management
 - Secure Firebase Authentication
-- Role-based access (Division/Office users)
+- Role-based access control (Admin/Division/Office users)
 - User profile management
 - Multi-device login support
+- Session management
 
 ### 📊 Dynamic Form System
-- Admin-configurable forms
-- Office-based form assignment
-- Multiple field types (text, dropdown, file upload, date)
+- **Web Portal**: Create and configure dynamic forms with drag-and-drop form builder
+- **Mobile App**: Admin-configurable forms with office-based assignment
+- Multiple field types (text, dropdown, date, file upload)
 - Real-time validation and duplicate prevention
+- Form validation and preview
 
 ### 📈 Reports & Analytics
-- Dynamic report generation
-- Office hierarchy filtering
-- Date range filtering
-- Excel export functionality
+- **Web Portal**: Real-time data visualization with interactive charts and graphs
+- **Mobile App**: Dynamic report generation with Excel export
+- Office hierarchy filtering and date range analytics
+- Export functionality (Excel, PDF)
 - Real-time data updates
 
 ### 🏢 Office Hierarchy Management
 - Multi-level office structure (Region → Division → Office)
-- Recursive office filtering
-- Hierarchical data access control
+- Recursive office filtering and hierarchical data access control
+- Office assignment and permissions
+- **Web Portal**: Advanced office structure management
+- **Mobile App**: Office-based data filtering
 
 ### 🔔 Notification System
 - Push notifications via Firebase Cloud Messaging
 - Division-level broadcast capabilities
-- Targeted office-specific messaging
-- Notification history tracking
+- Targeted messaging by office/division
+- Notification history and tracking
+- **Web Portal**: Advanced notification management interface
 
 ### 📁 File Management
 - Multiple file type support (images, documents, PDFs)
@@ -54,20 +71,28 @@ The India Post Reports Management System is a Flutter-based mobile application d
 - Progress tracking for uploads
 - File size and type validation
 
-### 📋 Status Tracking
-- Real-time submission status
-- Pending forms counter
-- Progress monitoring
-- Office performance metrics
+### 📋 Status Tracking & Dashboard
+- **Web Portal**: Comprehensive admin panel with system configuration
+- **Mobile App**: Real-time submission status and pending forms counter
+- Progress monitoring and office performance metrics
+- User management and permissions
+- Analytics and insights
 
 ## 🛠 Technology Stack
 
-### Frontend
+### Web Portal (React)
+- **React 18.2.0** - Modern React with hooks
+- **TypeScript 5.8.3** - Type-safe development
+- **Material-UI 7.1.0** - Professional UI components
+- **React Router DOM 7.6.0** - Client-side routing
+- **React DnD 16.0.1** - Drag and drop functionality
+
+### Mobile App (Flutter)
 - **Flutter 3.3.0+** - Cross-platform mobile framework
 - **Dart** - Programming language
 - **Material Design** - UI/UX framework
 
-### Backend Services
+### Backend Services (Shared)
 - **Firebase**
   - Authentication
   - Firestore Database
@@ -78,7 +103,25 @@ The India Post Reports Management System is a Flutter-based mobile application d
   - Real-time subscriptions
   - Storage buckets
 
+### Build Tools
+- **React Scripts 5.0.1** - Web build and development tools
+- **Flutter Build System** - Mobile build tools
+- **TypeScript** - Compilation and type checking
+
 ### Key Dependencies
+
+#### Web Portal
+```json
+{
+  "react": "^18.2.0",
+  "typescript": "^5.8.3",
+  "@mui/material": "^7.1.0",
+  "firebase": "^11.7.1",
+  "@supabase/supabase-js": "^2.39.0"
+}
+```
+
+#### Mobile App
 ```yaml
 dependencies:
   flutter: sdk: flutter
@@ -99,89 +142,197 @@ dependencies:
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Flutter SDK 3.3.0 or higher
-- Dart SDK 3.0.0 or higher
-- Android Studio / VS Code
-- Firebase project
-- Supabase project
+- **Web Portal**: Node.js 16+ and npm
+- **Mobile App**: Flutter SDK 3.3.0+, Dart SDK 3.0.0+, Android Studio/VS Code
+- Firebase project setup
+- Supabase project setup
 
 ### Installation
 
 1. **Clone the repository**
 ```bash
-git clone <repository-url>
+git clone https://github.com/sathishnagarathinam/reportsmanagement.git
+cd reportsmanagement
+```
+
+### Web Portal Setup
+
+2. **Navigate to web app**
+```bash
+cd web-app
+```
+
+3. **Install dependencies**
+```bash
+npm install
+```
+
+4. **Configure environment variables**
+```bash
+# Create .env file with your Firebase and Supabase credentials
+REACT_APP_FIREBASE_API_KEY=your_api_key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_auth_domain
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_SUPABASE_URL=your_supabase_url
+REACT_APP_SUPABASE_ANON_KEY=your_supabase_key
+```
+
+5. **Start development server**
+```bash
+npm start
+```
+
+6. **Build for production**
+```bash
+npm run build
+```
+
+### Mobile App Setup
+
+2. **Navigate to mobile app**
+```bash
 cd mobile_app_flutter
 ```
 
-2. **Install dependencies**
+3. **Install dependencies**
 ```bash
 flutter pub get
 ```
 
-3. **Configure Firebase**
+4. **Configure Firebase**
    - Add `google-services.json` to `android/app/`
    - Add `GoogleService-Info.plist` to `ios/Runner/`
 
-4. **Configure Supabase**
+5. **Configure Supabase**
    - Update Supabase URL and anon key in `main.dart`
 
-5. **Run the application**
+6. **Run the application**
 ```bash
 flutter run
 ```
 
 ### Build for Production
 
-#### Android
+#### Web Portal
+```bash
+npm run build
+```
+
+#### Mobile App - Android
 ```bash
 flutter build apk --release
 ```
 
-#### iOS
+#### Mobile App - iOS
 ```bash
 flutter build ios --release
 ```
 
+## 📁 Project Structure
+
+### Web Portal Structure
+```
+web-app/
+├── src/
+│   ├── components/          # Reusable UI components
+│   ├── pages/              # Main application pages
+│   ├── services/           # API and business logic
+│   ├── contexts/           # React contexts for state management
+│   ├── types/              # TypeScript type definitions
+│   ├── utils/              # Utility functions
+│   ├── config/             # Configuration files
+│   └── theme/              # Material-UI theme configuration
+├── public/                 # Static assets
+└── build/                  # Production build
+```
+
+### Mobile App Structure
+```
+mobile_app_flutter/
+├── lib/
+│   ├── main.dart                 # Application entry point
+│   ├── firebase_options.dart     # Firebase configuration
+│   ├── screens/                  # UI screens
+│   │   ├── dashboard_screen.dart
+│   │   ├── login_screen.dart
+│   │   ├── data_entry_screen.dart
+│   │   ├── reports_screen.dart
+│   │   ├── notifications_screen.dart
+│   │   └── ...
+│   ├── services/                 # Business logic services
+│   │   ├── form_config_service.dart
+│   │   ├── reports_service.dart
+│   │   ├── notification_service.dart
+│   │   └── ...
+│   ├── widgets/                  # Reusable UI components
+│   │   ├── dynamic_reports_table.dart
+│   │   ├── file_upload_widget.dart
+│   │   └── ...
+│   └── themes/                   # App theming
+│       └── app_theme.dart
+├── android/                      # Android-specific files
+├── ios/                         # iOS-specific files
+└── assets/                      # App assets
+```
+
+## 🔧 Available Scripts
+
+### Web Portal
+- `npm start` - Start development server
+- `npm run build` - Build for production
+- `npm test` - Run tests
+- `npm run eject` - Eject from Create React App
+
+### Mobile App
+- `flutter run` - Run in development mode
+- `flutter build apk` - Build Android APK
+- `flutter build ios` - Build iOS app
+- `flutter test` - Run tests
+
+## 🌐 Deployment
+
+### GitHub Pages (Web Portal)
+This web application is configured for deployment on GitHub Pages:
+
+1. **Build the application**
+```bash
+cd web-app
+npm run build
+```
+
+2. **Deploy to GitHub Pages**
+```bash
+git add .
+git commit -m "Deploy to GitHub Pages"
+git push origin main
+```
+
+3. **Configure GitHub Pages**
+- Go to repository Settings → Pages
+- Select "Deploy from a branch"
+- Choose "main" branch and "/build" folder
+- Save settings
+
+### Other Deployment Options
+- **Netlify**: Connect your GitHub repository
+- **Vercel**: Import your GitHub repository
+- **Firebase Hosting**: Use Firebase CLI
+- **AWS S3**: Upload build folder to S3 bucket
+
 ## 📖 Documentation
 
 ### Complete Documentation Suite
-- **[📚 Comprehensive Documentation](COMPREHENSIVE_DOCUMENTATION.md)** - Complete system overview
-- **[🔧 API Reference](API_REFERENCE.md)** - Detailed API documentation
-- **[👤 User Manual](USER_MANUAL.md)** - End-user guide
-- **[🚀 Deployment Guide](DEPLOYMENT_GUIDE.md)** - Production deployment instructions
+- **[📚 Comprehensive Documentation](mobile_app_flutter/COMPREHENSIVE_DOCUMENTATION.md)** - Complete system overview
+- **[🔧 API Reference](mobile_app_flutter/API_REFERENCE.md)** - Detailed API documentation
+- **[👤 User Manual](mobile_app_flutter/USER_MANUAL.md)** - End-user guide
+- **[🚀 Deployment Guide](mobile_app_flutter/DEPLOYMENT_GUIDE.md)** - Production deployment instructions
 
 ### Quick Links
-- [Installation & Setup](COMPREHENSIVE_DOCUMENTATION.md#installation--setup)
-- [User Guide](USER_MANUAL.md#getting-started)
-- [Developer Guide](COMPREHENSIVE_DOCUMENTATION.md#developer-guide)
-- [Database Schema](COMPREHENSIVE_DOCUMENTATION.md#database-schema)
-- [Troubleshooting](USER_MANUAL.md#troubleshooting)
-
-## 🏗 Project Structure
-
-```
-lib/
-├── main.dart                 # Application entry point
-├── firebase_options.dart     # Firebase configuration
-├── screens/                  # UI screens
-│   ├── dashboard_screen.dart
-│   ├── login_screen.dart
-│   ├── data_entry_screen.dart
-│   ├── reports_screen.dart
-│   ├── notifications_screen.dart
-│   └── ...
-├── services/                 # Business logic services
-│   ├── form_config_service.dart
-│   ├── reports_service.dart
-│   ├── notification_service.dart
-│   └── ...
-├── widgets/                  # Reusable UI components
-│   ├── dynamic_reports_table.dart
-│   ├── file_upload_widget.dart
-│   └── ...
-└── themes/                   # App theming
-    └── app_theme.dart
-```
+- [Installation & Setup](#quick-start)
+- [User Guide](mobile_app_flutter/USER_MANUAL.md#getting-started)
+- [Developer Guide](mobile_app_flutter/COMPREHENSIVE_DOCUMENTATION.md#developer-guide)
+- [Database Schema](mobile_app_flutter/COMPREHENSIVE_DOCUMENTATION.md#database-schema)
+- [Troubleshooting](mobile_app_flutter/USER_MANUAL.md#troubleshooting)
 
 ## 👥 User Roles
 
@@ -190,12 +341,16 @@ lib/
 - Notification sending capabilities
 - Administrative functions
 - Cross-office data visibility
+- **Web Portal**: Advanced form builder and system configuration
+- **Mobile App**: Full administrative access
 
 ### Office Users
 - Office-specific data entry and reporting
 - Limited to assigned office data
 - Form submission and status tracking
 - Basic notification receiving
+- **Web Portal**: Office-level reporting and management
+- **Mobile App**: Field data entry and basic reporting
 
 ## 🔒 Security Features
 
@@ -205,6 +360,8 @@ lib/
 - **Input Validation**: Comprehensive client and server-side validation
 - **Audit Trail**: All user actions logged
 - **File Security**: File type and size validation
+- **HTTPS**: Secure data transmission
+- **Environment Variables**: Secure configuration management
 
 ## 📊 Database Schema
 
@@ -222,6 +379,17 @@ lib/
 ## 🔧 Configuration
 
 ### Environment Variables
+
+#### Web Portal (.env)
+```bash
+REACT_APP_FIREBASE_API_KEY=your-api-key
+REACT_APP_FIREBASE_AUTH_DOMAIN=your-auth-domain
+REACT_APP_FIREBASE_PROJECT_ID=your-project-id
+REACT_APP_SUPABASE_URL=your-supabase-url
+REACT_APP_SUPABASE_ANON_KEY=your-supabase-anon-key
+```
+
+#### Mobile App (firebase_options.dart)
 ```dart
 // Firebase Configuration
 const firebaseConfig = {
@@ -249,8 +417,16 @@ environment:
 
 ## 🧪 Testing
 
-### Run Tests
+### Web Portal Tests
 ```bash
+cd web-app
+npm test
+```
+
+### Mobile App Tests
+```bash
+cd mobile_app_flutter
+
 # Unit tests
 flutter test
 
@@ -269,19 +445,35 @@ genhtml coverage/lcov.info -o coverage/html
 
 ## 📱 Supported Platforms
 
-- **Android**: API level 23+ (Android 6.0+)
-- **iOS**: iOS 12.0+
-- **Web**: Modern browsers (Chrome, Firefox, Safari, Edge)
+- **Web Portal**: Modern browsers (Chrome, Firefox, Safari, Edge)
+- **Mobile App**:
+  - **Android**: API level 23+ (Android 6.0+)
+  - **iOS**: iOS 12.0+
 
 ## 🔄 Version History
 
 ### Version 1.0.0 (Current)
-- Initial release
+- Initial release with both web portal and mobile app
 - Complete form management system
 - Reports and analytics
 - Notification system
 - File upload functionality
 - Office hierarchy management
+- Cross-platform synchronization
+
+## 📊 Features Overview
+
+### Web Portal Features
+- **Admin Dashboard**: User management, form configuration, system analytics
+- **Form Builder**: Drag-and-drop interface with validation rules
+- **Reports & Analytics**: Real-time data visualization with interactive charts
+- **Office Management**: Comprehensive office hierarchy management
+
+### Mobile App Features
+- **Field Data Entry**: Offline-capable form submission
+- **Real-time Sync**: Automatic data synchronization
+- **File Upload**: Multiple file type support with progress tracking
+- **Push Notifications**: Real-time updates and alerts
 
 ## 🤝 Contributing
 
@@ -293,7 +485,8 @@ genhtml coverage/lcov.info -o coverage/html
 5. Open a Pull Request
 
 ### Code Style
-- Follow [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style)
+- **Web Portal**: Follow React/TypeScript best practices
+- **Mobile App**: Follow [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style)
 - Use meaningful variable and function names
 - Add comprehensive documentation
 - Write unit tests for new features
@@ -302,8 +495,8 @@ genhtml coverage/lcov.info -o coverage/html
 
 ### Technical Support
 - **Email**: sathishsat04@gmail.com
-- **Issues**: [GitHub Issues](link-to-issues)
-- **Documentation**: [Complete Documentation](COMPREHENSIVE_DOCUMENTATION.md)
+- **Issues**: [GitHub Issues](https://github.com/sathishnagarathinam/reportsmanagement/issues)
+- **Documentation**: [Complete Documentation](mobile_app_flutter/COMPREHENSIVE_DOCUMENTATION.md)
 
 ### Contact Information
 - **Developer**: Sathish Nagarathinam
@@ -317,7 +510,9 @@ This project is proprietary software developed for India Post Western Region. Al
 ## 🙏 Acknowledgments
 
 - India Post Western Region for project requirements and support
-- Flutter team for the excellent framework
+- React and TypeScript communities for web development
+- Flutter team for the excellent mobile framework
+- Material-UI team for excellent web components
 - Firebase and Supabase teams for backend services
 - Open source community for various packages and tools
 
@@ -328,4 +523,3 @@ This project is proprietary software developed for India Post Western Region. Al
   <p>© 2025 All rights reserved</p>
   <p>Developed with ❤️ for India Post</p>
 </div>
-# reportsmanagement
