@@ -29,12 +29,25 @@ const CardSelector: React.FC<CardSelectorProps> = ({
       let displayTitle = card.title;
 
       // If title is undefined, null, or empty, check if it's an MMU-related entry
-      if (!displayTitle || displayTitle.trim() === '') {
+      if (!displayTitle || displayTitle.trim() === '' || displayTitle === 'undefined') {
         // Check if this might be an MMU entry based on ID or other properties
         if (card.id === 'mmu' || card.id.toLowerCase().includes('mmu')) {
           displayTitle = 'MMU';
         } else {
-          displayTitle = '[Unnamed Report]';
+          // Skip undefined entries that are not MMU-related
+          console.warn(`Skipping undefined entry with ID: ${card.id}`);
+          return [];
+        }
+      }
+
+      // Also handle the case where title is literally "undefined" string
+      if (displayTitle === 'undefined') {
+        if (card.id === 'mmu' || card.id.toLowerCase().includes('mmu')) {
+          displayTitle = 'MMU';
+        } else {
+          // Skip undefined entries that are not MMU-related
+          console.warn(`Skipping undefined title entry with ID: ${card.id}`);
+          return [];
         }
       }
 

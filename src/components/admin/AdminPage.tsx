@@ -7,6 +7,7 @@ import Sidebar from '../shared/Sidebar';
 import StatsCards from '../shared/StatsCards';
 import PageBuilder from './business/PageBuilder';
 import OfficeLoadingTest from './business/OfficeLoadingTest';
+import MMUSetupTool from './MMUSetupTool';
 
 const AdminPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -50,6 +51,7 @@ const AdminPage: React.FC = () => {
           </button>
         </div>
         <StatsCards />
+        <MMUSetupTool />
         {showOfficeTest ? <OfficeLoadingTest /> : <PageBuilder />}
       </div>
     </div>
