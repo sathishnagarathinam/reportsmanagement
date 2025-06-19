@@ -18,6 +18,7 @@ const ReportsDebugScreen = React.lazy(() => import('./components/Reports/Reports
 const BasicSupabaseTest = React.lazy(() => import('./components/Reports/BasicSupabaseTest'));
 const MasterAdmin = React.lazy(() => import('./components/admin/MasterAdmin'));
 const AdminPage = React.lazy(() => import('./components/admin/AdminPage'));
+const MMUAdmin = React.lazy(() => import('./components/admin/mmu/MMUAdmin'));
 const Profile = React.lazy(() => import('./components/Profile/Profile'));
 // Remove these imports
 // const BusinessDevelopment = React.lazy(() => import('./components/DataEntry/BusinessDevelopment'));
@@ -69,6 +70,7 @@ function App() {
                 <Route path="/basic-test" element={<BasicSupabaseTest />} />
                 <Route path="/master-admin" element={<MasterAdmin />} />
                 <Route path="/admin" element={<AdminPage />} />
+                <Route path="/admin/mmu" element={<MMUAdmin />} />
                 <Route path="/data-entry" element={<DataEntry />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/data-entry/:cardId/*" element={<CardPage />} />

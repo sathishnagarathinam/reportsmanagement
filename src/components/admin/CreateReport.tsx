@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH } from 'react-icons/fa';
+import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH, FaTruck } from 'react-icons/fa';
 import './CreateReport.css';
 
 const CreateReport: React.FC = () => {
@@ -15,7 +15,8 @@ const CreateReport: React.FC = () => {
     { id: 6, title: 'IPPB', icon: React.createElement(FaUniversity as React.ComponentType<any>, { size: 40 }), path: '/admin/ippb' },
     { id: 7, title: 'Recruitment', icon: React.createElement(FaUsers as React.ComponentType<any>, { size: 40 }), path: '/admin/recruitment' },
     { id: 8, title: 'Investigation', icon: React.createElement(FaSearch as React.ComponentType<any>, { size: 40 }), path: '/admin/investigation' },
-    { id: 9, title: 'Others', icon: React.createElement(FaEllipsisH as React.ComponentType<any>, { size: 40 }), path: '/admin/others' }
+    { id: 9, title: 'MMU', icon: React.createElement(FaTruck as React.ComponentType<any>, { size: 40 }), path: '/admin/mmu' },
+    { id: 10, title: 'Others', icon: React.createElement(FaEllipsisH as React.ComponentType<any>, { size: 40 }), path: '/admin/others' }
   ];
 
   return (
