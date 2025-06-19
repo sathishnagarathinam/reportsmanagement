@@ -24,12 +24,17 @@ const CardSelector: React.FC<CardSelectorProps> = ({
   onWebPageAction,
 }) => {
   const renderCardOptions = (cards: Category[], level = 0): React.ReactElement[] => {
-    return cards.flatMap(card => [
-      <option key={card.id} value={card.id} style={{ paddingLeft: `${level * 20}px` }}>
-        {`${'--'.repeat(level)} ${card.title}`}
-      </option>,
-      ...(card.children && card.children.length > 0 ? renderCardOptions(card.children, level + 1) : []),
-    ]);
+    return cards.flatMap(card => {
+      // Handle undefined or empty titles gracefully
+      const displayTitle = card.title || '[Unnamed Report]';
+
+      return [
+        <option key={card.id} value={card.id} style={{ paddingLeft: `${level * 20}px` }}>
+          {`${'--'.repeat(level)} ${displayTitle}`}
+        </option>,
+        ...(card.children && card.children.length > 0 ? renderCardOptions(card.children, level + 1) : []),
+      ];
+    });
   };
 
   const handleCardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
