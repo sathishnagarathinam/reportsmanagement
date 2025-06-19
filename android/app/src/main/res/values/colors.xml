@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App theme colors for splash screen - Purple Theme -->
+    <color name="splash_background_start">#6A1B9A</color>
+    <color name="splash_background_center">#8E24AA</color>
+    <color name="splash_background_end">#4A148C</color>
+
+    <!-- Primary app colors - Purple Theme -->
+    <color name="primary_color">#6A1B9A</color>
+    <color name="primary_dark_color">#4A148C</color>
+    <color name="accent_color">#8E24AA</color>
+</resources>
