@@ -12,6 +12,7 @@ import PageBuilderContent from './components/PageBuilderContent';
 import ReportConfiguration from './components/ReportConfiguration';
 // Debug components removed - Supabase integration working
 import { isLeafCard, isMainCard } from './utils/cardUtils';
+import { saveDropdownSelections, loadDropdownSelections } from './utils/dropdownPersistence';
 
 // All interfaces and utilities are now imported from separate files
 
@@ -72,7 +73,42 @@ const PageBuilder: React.FC = () => {
   // Initialize data on component mount
   useEffect(() => {
     cardManagement.fetchCategories();
+
+    // Load saved dropdown selections from localStorage
+    const savedSelections = loadDropdownSelections();
+    if (savedSelections) {
+      if (savedSelections.selectedRegions.length > 0) {
+        state.setSelectedRegions(savedSelections.selectedRegions);
+      }
+      if (savedSelections.selectedDivisions.length > 0) {
+        state.setSelectedDivisions(savedSelections.selectedDivisions);
+      }
+      if (savedSelections.selectedOffices.length > 0) {
+        state.setSelectedOffices(savedSelections.selectedOffices);
+      }
+      if (savedSelections.selectedFrequency) {
+        state.setSelectedFrequency(savedSelections.selectedFrequency);
+      }
+    }
   }, []);
+
+  // Save dropdown selections to localStorage whenever they change
+  useEffect(() => {
+    const selections = {
+      selectedRegions: state.selectedRegions,
+      selectedDivisions: state.selectedDivisions,
+      selectedOffices: state.selectedOffices,
+      selectedFrequency: state.selectedFrequency,
+    };
+
+    // Only save if at least one selection is made
+    if (selections.selectedRegions.length > 0 ||
+        selections.selectedDivisions.length > 0 ||
+        selections.selectedOffices.length > 0 ||
+        selections.selectedFrequency) {
+      saveDropdownSelections(selections);
+    }
+  }, [state.selectedRegions, state.selectedDivisions, state.selectedOffices, state.selectedFrequency]);
 
   // Handle card and action changes
   useEffect(() => {
@@ -134,16 +170,26 @@ const PageBuilder: React.FC = () => {
 
   // Event handlers for report configuration dropdowns - updated for arrays
   const handleRegionsChange = (regions: string[]) => {
+    const previousRegions = state.selectedRegions;
     state.setSelectedRegions(regions);
-    // Reset dependent dropdowns when regions change
-    state.setSelectedDivisions([]);
-    state.setSelectedOffices([]);
+
+    // Only reset dependent dropdowns if regions actually changed
+    // This prevents losing selections when component re-renders
+    if (JSON.stringify(regions) !== JSON.stringify(previousRegions)) {
+      state.setSelectedDivisions([]);
+      state.setSelectedOffices([]);
+    }
   };
 
   const handleDivisionsChange = (divisions: string[]) => {
+    const previousDivisions = state.selectedDivisions;
     state.setSelectedDivisions(divisions);
-    // Reset dependent dropdown when divisions change
-    state.setSelectedOffices([]);
+
+    // Only reset dependent dropdown if divisions actually changed
+    // This prevents losing selections when component re-renders
+    if (JSON.stringify(divisions) !== JSON.stringify(previousDivisions)) {
+      state.setSelectedOffices([]);
+    }
   };
 
   const handleOfficesChange = (offices: string[]) => {

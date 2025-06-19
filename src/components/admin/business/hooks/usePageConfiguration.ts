@@ -106,10 +106,25 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
         setPageConfig(data);
         setFields(data.fields || []);
         // Load saved dropdown values - handle both old single values and new arrays
-        setSelectedRegions(data.selectedRegions || (data.selectedRegion ? [data.selectedRegion] : []));
-        setSelectedDivisions(data.selectedDivisions || (data.selectedDivision ? [data.selectedDivision] : []));
-        setSelectedOffices(data.selectedOffices || (data.selectedOffice ? [data.selectedOffice] : []));
-        setSelectedFrequency(data.selectedFrequency || '');
+        // Only set if current state is empty to preserve user selections
+        const savedRegions = data.selectedRegions || (data.selectedRegion ? [data.selectedRegion] : []);
+        const savedDivisions = data.selectedDivisions || (data.selectedDivision ? [data.selectedDivision] : []);
+        const savedOffices = data.selectedOffices || (data.selectedOffice ? [data.selectedOffice] : []);
+        const savedFrequency = data.selectedFrequency || '';
+
+        // Only update if current selections are empty (preserve user's current selections)
+        if (selectedRegions.length === 0 && savedRegions.length > 0) {
+          setSelectedRegions(savedRegions);
+        }
+        if (selectedDivisions.length === 0 && savedDivisions.length > 0) {
+          setSelectedDivisions(savedDivisions);
+        }
+        if (selectedOffices.length === 0 && savedOffices.length > 0) {
+          setSelectedOffices(savedOffices);
+        }
+        if (!selectedFrequency && savedFrequency) {
+          setSelectedFrequency(savedFrequency);
+        }
       } else {
         // Create new page config
         const card = categories.find(c => c.id === cardId);
@@ -134,7 +149,7 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
     } finally {
       setLoading(false);
     }
-  }, [categories, setLoading, setError, setPageConfig, setFields, setSelectedRegions, setSelectedDivisions, setSelectedOffices, setSelectedFrequency]);
+  }, [categories, setLoading, setError, setPageConfig, setFields, setSelectedRegions, setSelectedDivisions, setSelectedOffices, setSelectedFrequency, selectedRegions, selectedDivisions, selectedOffices, selectedFrequency]);
 
   const addField = () => {
     const newField: FormField = {
