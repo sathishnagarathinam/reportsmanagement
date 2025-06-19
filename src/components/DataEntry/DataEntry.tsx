@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../shared/Sidebar';
 import StatsCards from '../shared/StatsCards';
-import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH, FaTruck } from 'react-icons/fa';
+import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH, FaTruck, FaGasPump, FaUserTie, FaRoute, FaMapMarkerAlt, FaCalendarAlt } from 'react-icons/fa';
 import { IconType } from 'react-icons';
 import { FormFilteringService } from '../../services/formFilteringService';
 import './DataEntry.css';
@@ -107,6 +107,12 @@ const DataEntry: React.FC = () => {
 
     const normalizedTitle = title.toLowerCase();
     if (normalizedTitle.includes('mmu')) return FaTruck; // MMU specific icon
+    if (normalizedTitle.includes('vehicle') && normalizedTitle.includes('maintenance')) return FaTruck;
+    if (normalizedTitle.includes('fuel')) return FaGasPump;
+    if (normalizedTitle.includes('driver')) return FaUserTie;
+    if (normalizedTitle.includes('route')) return FaRoute;
+    if (normalizedTitle.includes('tracking')) return FaMapMarkerAlt;
+    if (normalizedTitle.includes('schedule') || normalizedTitle.includes('maintenance')) return FaCalendarAlt;
     if (normalizedTitle.includes('business')) return FaBriefcase;
     if (normalizedTitle.includes('tech')) return FaLaptopCode;
     if (normalizedTitle.includes('building')) return FaBuilding;
@@ -129,6 +135,12 @@ const DataEntry: React.FC = () => {
 
       const normalizedTitle = title.toLowerCase();
       if (normalizedTitle.includes('mmu')) return '#28a745'; // MMU specific color
+      if (normalizedTitle.includes('vehicle') && normalizedTitle.includes('maintenance')) return '#28a745';
+      if (normalizedTitle.includes('fuel')) return '#fd7e14';
+      if (normalizedTitle.includes('driver')) return '#6f42c1';
+      if (normalizedTitle.includes('route')) return '#20c997';
+      if (normalizedTitle.includes('tracking')) return '#dc3545';
+      if (normalizedTitle.includes('schedule') || normalizedTitle.includes('maintenance')) return '#0dcaf0';
       if (normalizedTitle.includes('business')) return '#4CAF50';
       if (normalizedTitle.includes('tech')) return '#2196F3';
       if (normalizedTitle.includes('building')) return '#FF9800';

@@ -5,7 +5,7 @@ import { auth, db } from '../../config/firebase';
 import { supabase } from '../../config/supabaseClient';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../shared/Sidebar';
-import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH, FaLock } from 'react-icons/fa';
+import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH, FaLock, FaTruck, FaGasPump, FaUserTie, FaRoute, FaMapMarkerAlt, FaCalendarAlt } from 'react-icons/fa';
 import { IconType } from 'react-icons';
 import './DataEntry.css';
 import DynamicForm, { FormConfig, DynamicFormRef } from '../shared/DynamicForm'; // Import the new component and FormConfig
@@ -342,7 +342,13 @@ const CardPage: React.FC = () => {
       FaUniversity,
       FaUsers,
       FaSearch,
-      FaEllipsisH
+      FaEllipsisH,
+      FaTruck,
+      FaGasPump,
+      FaUserTie,
+      FaRoute,
+      FaMapMarkerAlt,
+      FaCalendarAlt
     }[iconName || 'FaEllipsisH'] || FaEllipsisH;
 
     return React.createElement(IconComponent as React.ComponentType<any>);
