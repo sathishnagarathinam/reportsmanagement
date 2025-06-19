@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../shared/Sidebar';
 import StatsCards from '../shared/StatsCards';
-import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH } from 'react-icons/fa';
+import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH, FaTruck } from 'react-icons/fa';
 import { IconType } from 'react-icons';
 import { FormFilteringService } from '../../services/formFilteringService';
 import './DataEntry.css';
@@ -99,8 +99,14 @@ const DataEntry: React.FC = () => {
   // Recursive function to render cards with their children
   // Modify the renderCard function to remove child card rendering
   // Add this function before renderCard
-  const getIconComponent = (title: string): IconType => {
+  const getIconComponent = (title: string | undefined | null): IconType => {
+    // Handle undefined, null, or empty titles
+    if (!title || typeof title !== 'string') {
+      return FaEllipsisH; // Default icon for undefined/null titles
+    }
+
     const normalizedTitle = title.toLowerCase();
+    if (normalizedTitle.includes('mmu')) return FaTruck; // MMU specific icon
     if (normalizedTitle.includes('business')) return FaBriefcase;
     if (normalizedTitle.includes('tech')) return FaLaptopCode;
     if (normalizedTitle.includes('building')) return FaBuilding;
@@ -115,8 +121,14 @@ const DataEntry: React.FC = () => {
   // Update the renderCard function's getIconColor
   const renderCard = (category: Category) => {
     const IconComponent = getIconComponent(category.title);
-    const getIconColor = (title: string) => {
+    const getIconColor = (title: string | undefined | null) => {
+      // Handle undefined, null, or empty titles
+      if (!title || typeof title !== 'string') {
+        return '#607D8B'; // Default color for undefined/null titles
+      }
+
       const normalizedTitle = title.toLowerCase();
+      if (normalizedTitle.includes('mmu')) return '#28a745'; // MMU specific color
       if (normalizedTitle.includes('business')) return '#4CAF50';
       if (normalizedTitle.includes('tech')) return '#2196F3';
       if (normalizedTitle.includes('building')) return '#FF9800';
@@ -124,7 +136,7 @@ const DataEntry: React.FC = () => {
       if (normalizedTitle.includes('bank')) return '#F44336';
       if (normalizedTitle.includes('ippb')) return '#3F51B5';
       if (normalizedTitle.includes('recruitment')) return '#009688';
-      if (normalizedTitle.includes('investigation')) return '#795548';
+      if (normalizedTitle.includes('investigation')) return '#795748';
       return '#607D8B';
     };
 
@@ -171,7 +183,7 @@ const DataEntry: React.FC = () => {
         <div className="category-icon" style={{ color: getIconColor(category.title) }}>
           {React.createElement(IconComponent as React.ComponentType<any>, { size: 40 })}
         </div>
-        <h3>{category.title}</h3>
+        <h3>{category.title || 'Unnamed Category'}</h3>
       </div>
     );
   };
@@ -185,6 +197,7 @@ const DataEntry: React.FC = () => {
         <div className="category-grid">
           {categories
             .filter(category => !category.parentId) // Only show top-level cards
+            .filter(category => category.title && category.title.trim() !== '' && category.title !== 'undefined') // Filter out undefined titles
             .map(category => renderCard(category))}
         </div>
       </div>
