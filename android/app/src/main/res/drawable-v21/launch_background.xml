@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Aggressive native splash screen for API 21+ - completely eliminates app icon flash -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Full screen background gradient matching app theme exactly -->
+    <item android:drawable="@color/splash_background_start" />
+
+    <!-- Secondary gradient layer for smooth transition -->
+    <item>
+        <shape android:shape="rectangle">
+            <gradient
+                android:type="linear"
+                android:angle="270"
+                android:startColor="#6A1B9A"
+                android:centerColor="#8E24AA"
+                android:endColor="#4A148C" />
+        </shape>
+    </item>
+
+    <!-- India Post Logo - centered with proper sizing -->
+    <item android:gravity="center">
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/indiapost_logo"
+            android:tileMode="disabled" />
+    </item>
+
+    <!-- Overlay to ensure consistent appearance -->
+    <item>
+        <shape android:shape="rectangle">
+            <solid android:color="#006A1B9A" />
+        </shape>
+    </item>
+</layer-list>
