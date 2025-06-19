@@ -7,7 +7,6 @@ import Sidebar from '../shared/Sidebar';
 import StatsCards from '../shared/StatsCards';
 import PageBuilder from './business/PageBuilder';
 import OfficeLoadingTest from './business/OfficeLoadingTest';
-import MMUHierarchySetup from './MMUHierarchySetup';
 
 const AdminPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -51,7 +50,6 @@ const AdminPage: React.FC = () => {
           </button>
         </div>
         <StatsCards />
-        <MMUHierarchySetup />
         {showOfficeTest ? <OfficeLoadingTest /> : <PageBuilder />}
       </div>
     </div>
