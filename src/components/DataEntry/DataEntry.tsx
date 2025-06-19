@@ -194,7 +194,7 @@ const DataEntry: React.FC = () => {
         <StatsCards />
         <div className="category-grid">
           {categories
-            .filter(category => !category.parentId) // Only show top-level cards
+            .filter(category => !category.parentId || category.parentId === '') // Only show top-level cards (handle both null and empty string)
             .filter(category => category.title && category.title.trim() !== '' && category.title !== 'undefined') // Filter out undefined titles
             .map(category => renderCard(category))}
         </div>

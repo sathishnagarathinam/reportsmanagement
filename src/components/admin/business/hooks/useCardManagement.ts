@@ -119,7 +119,7 @@ export const useCardManagement = (props: UseCardManagementProps) => {
         id: newCardId,
         title: newCardTitle,
         path: newPath,
-        parentId: parentIdToSet,
+        parentId: parentIdToSet || '', // Use empty string instead of null for consistency
         lastUpdated: new Date().toISOString(),
         icon: generatedIcon.name,
         color: generatedColor,
