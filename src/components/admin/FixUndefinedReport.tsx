@@ -8,6 +8,7 @@ const FixUndefinedReport: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
   const [foundIssues, setFoundIssues] = useState<any[]>([]);
+  const [hasUnnamedReport, setHasUnnamedReport] = useState(false);
 
   const scanForUndefinedReports = async () => {
     setIsFixing(true);
@@ -23,19 +24,30 @@ const FixUndefinedReport: React.FC = () => {
       pagesSnapshot.docs.forEach(doc => {
         const data = doc.data();
         const title = data.title;
-        
-        if (!title || title === 'undefined' || title.trim() === '') {
+
+        if (!title || title === 'undefined' || title.trim() === '' || title === '[Unnamed Report]') {
           issues.push({
             collection: 'pages',
             id: doc.id,
             data: data,
-            issue: !title ? 'Missing title' : title === 'undefined' ? 'Title is "undefined"' : 'Empty title'
+            issue: !title ? 'Missing title' :
+                   title === 'undefined' ? 'Title is "undefined"' :
+                   title === '[Unnamed Report]' ? 'Title is "[Unnamed Report]"' :
+                   'Empty title'
           });
         }
       });
 
       setFoundIssues(issues);
-      
+
+      // Check if any of the issues might be the unnamed report showing in dropdown
+      const hasUnnamed = issues.some(issue =>
+        issue.issue.includes('Missing title') ||
+        issue.issue.includes('undefined') ||
+        issue.issue.includes('[Unnamed Report]')
+      );
+      setHasUnnamedReport(hasUnnamed);
+
       if (issues.length === 0) {
         setSuccess('✅ No undefined reports found! Your database is clean.');
       } else {
@@ -45,6 +57,57 @@ const FixUndefinedReport: React.FC = () => {
     } catch (err) {
       console.error('Error scanning for undefined reports:', err);
       setError('❌ Failed to scan for undefined reports. Please try again.');
+    } finally {
+      setIsFixing(false);
+    }
+  };
+
+  const quickFixUnnamedReport = async () => {
+    setIsFixing(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      // Quick fix for the most common case - find and fix the unnamed report
+      const pagesSnapshot = await getDocs(collection(db, 'pages'));
+      let fixedCount = 0;
+
+      for (const docSnapshot of pagesSnapshot.docs) {
+        const data = docSnapshot.data();
+        const title = data.title;
+
+        // If this looks like it should be MMU or is unnamed
+        if (!title || title === 'undefined' || title.trim() === '' || title === '[Unnamed Report]') {
+          const docRef = doc(db, 'pages', docSnapshot.id);
+
+          await updateDoc(docRef, {
+            title: 'MMU',
+            id: docSnapshot.id,
+            lastUpdated: new Date(),
+            description: 'Mail Motor Unit - Vehicle management and logistics',
+            parentId: data.parentId || '',
+            isPage: data.isPage !== undefined ? data.isPage : false
+          });
+          fixedCount++;
+        }
+      }
+
+      if (fixedCount > 0) {
+        setSuccess(`✅ Quick fix successful! Renamed ${fixedCount} unnamed report(s) to "MMU". The dropdown will now show "MMU" instead of "[Unnamed Report]".`);
+        setFoundIssues([]);
+        setHasUnnamedReport(false);
+
+        // Refresh the page after 2 seconds
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        setSuccess('✅ No unnamed reports found to fix.');
+      }
+
+    } catch (err) {
+      console.error('Error in quick fix:', err);
+      setError('❌ Quick fix failed. Please try the full scan and fix process.');
     } finally {
       setIsFixing(false);
     }
@@ -61,13 +124,22 @@ const FixUndefinedReport: React.FC = () => {
 
       for (const issue of foundIssues) {
         const docRef = doc(db, issue.collection, issue.id);
-        
-        // If the document has some meaningful data, rename it to MMU
-        if (issue.data.id || issue.data.parentId !== undefined) {
+
+        // Check if this should be MMU based on ID or if it has meaningful data
+        const shouldBeMMU = issue.id === 'mmu' ||
+                           issue.id.toLowerCase().includes('mmu') ||
+                           issue.data.id === 'mmu' ||
+                           (issue.data.id && issue.data.id.toLowerCase().includes('mmu'));
+
+        if (shouldBeMMU || issue.data.id || issue.data.parentId !== undefined) {
+          // Rename to MMU with proper data structure
           await updateDoc(docRef, {
             title: 'MMU',
+            id: issue.id === 'mmu' ? 'mmu' : issue.data.id || 'mmu',
             lastUpdated: new Date(),
-            description: 'Mail Motor Unit - Vehicle management and logistics'
+            description: 'Mail Motor Unit - Vehicle management and logistics',
+            parentId: issue.data.parentId || '',
+            isPage: issue.data.isPage !== undefined ? issue.data.isPage : false
           });
           fixedCount++;
         } else {
@@ -107,7 +179,9 @@ const FixUndefinedReport: React.FC = () => {
       </div>
       
       <p style={{ marginBottom: '15px', color: '#856404' }}>
-        If you're seeing "undefined" in the report dropdown, this tool will help you fix it by renaming it to "MMU" or removing invalid entries.
+        <strong>Seeing "[Unnamed Report]" or "undefined" in the dropdown?</strong><br/>
+        Use the <strong>"Quick Fix: Rename to MMU"</strong> button to instantly fix this issue.
+        The unnamed report will be properly renamed to "MMU" and appear correctly in the dropdown.
       </p>
 
       {error && (
@@ -153,7 +227,28 @@ const FixUndefinedReport: React.FC = () => {
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: '10px' }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+        <button
+          onClick={quickFixUnnamedReport}
+          disabled={isFixing}
+          style={{
+            padding: '12px 24px',
+            backgroundColor: isFixing ? '#6c757d' : '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: isFixing ? 'not-allowed' : 'pointer',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          {React.createElement(FaTruck as React.ComponentType<any>, { size: 16 })}
+          {isFixing ? 'Fixing...' : 'Quick Fix: Rename to MMU'}
+        </button>
+
         <button
           onClick={scanForUndefinedReports}
           disabled={isFixing}
@@ -194,7 +289,7 @@ const FixUndefinedReport: React.FC = () => {
             }}
           >
             {React.createElement(FaTruck as React.ComponentType<any>, { size: 16 })}
-            {isFixing ? 'Fixing...' : 'Fix Issues (Rename to MMU)'}
+            {isFixing ? 'Fixing...' : 'Fix All Issues'}
           </button>
         )}
       </div>

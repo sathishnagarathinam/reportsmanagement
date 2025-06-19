@@ -26,7 +26,17 @@ const CardSelector: React.FC<CardSelectorProps> = ({
   const renderCardOptions = (cards: Category[], level = 0): React.ReactElement[] => {
     return cards.flatMap(card => {
       // Handle undefined or empty titles gracefully
-      const displayTitle = card.title || '[Unnamed Report]';
+      let displayTitle = card.title;
+
+      // If title is undefined, null, or empty, check if it's an MMU-related entry
+      if (!displayTitle || displayTitle.trim() === '') {
+        // Check if this might be an MMU entry based on ID or other properties
+        if (card.id === 'mmu' || card.id.toLowerCase().includes('mmu')) {
+          displayTitle = 'MMU';
+        } else {
+          displayTitle = '[Unnamed Report]';
+        }
+      }
 
       return [
         <option key={card.id} value={card.id} style={{ paddingLeft: `${level * 20}px` }}>
