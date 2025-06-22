@@ -10,7 +10,7 @@ export interface FormFieldOption {
 // It's slightly different from the DynamicFormField used by the DynamicForm component.
 export interface FormField {
   id: string;
-  type: 'text' | 'textarea' | 'number' | 'date' | 'dropdown' | 'radio' | 'checkbox' | 'checkbox-group' | 'section' | 'button' | 'file' | 'switch';
+  type: 'text' | 'textarea' | 'number' | 'date' | 'dropdown' | 'radio' | 'checkbox' | 'checkbox-group' | 'section' | 'button' | 'file' | 'switch' | 'calculated';
   label: string;
   placeholder?: string;
   region?: string;
@@ -29,6 +29,13 @@ export interface FormField {
   defaultValue?: any;
   min?: number;
   max?: number;
+  // For calculated fields
+  calculationType?: 'sum' | 'subtract' | 'multiply' | 'divide' | 'average' | 'percentage' | 'custom';
+  sourceFields?: string[]; // Array of field IDs to use in calculation
+  customFormula?: string; // Custom JavaScript formula for advanced calculations
+  decimalPlaces?: number; // Number of decimal places to show
+  prefix?: string; // Prefix for display (e.g., "$", "₹")
+  suffix?: string; // Suffix for display (e.g., "%", "kg")
   [key: string]: any; // Add this index signature
 }
 

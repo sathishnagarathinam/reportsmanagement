@@ -17,7 +17,7 @@ interface FormFieldOption {
 // It's slightly different from the DynamicFormField used by the DynamicForm component.
 interface FormField {
   id: string;
-  type: 'text' | 'textarea' | 'number' | 'date' | 'dropdown' | 'radio' | 'checkbox' | 'checkbox-group' | 'section' | 'button' | 'file' | 'switch'; // Added file and switch to match DynamicForm
+  type: 'text' | 'textarea' | 'number' | 'date' | 'dropdown' | 'radio' | 'checkbox' | 'checkbox-group' | 'section' | 'button' | 'file' | 'switch' | 'calculated'; // Added calculated
   label: string;
   placeholder?: string;
   region?: string;

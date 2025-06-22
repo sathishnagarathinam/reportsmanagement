@@ -73,6 +73,7 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
             <option value="checkbox-group">Checkbox Group</option>
             <option value="switch">Switch</option>
             <option value="file">File Upload</option>
+            <option value="calculated">🧮 Calculated Field</option>
             <option value="section">Section Header</option>
             <option value="button">Button</option>
           </select>
@@ -236,6 +237,113 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
               value={field.sectionTitle || ''}
               onChange={(e) => onUpdate(index, {...field, sectionTitle: e.target.value})}
             />
+          </div>
+        )}
+
+        {/* Calculated Field Configuration */}
+        {field.type === 'calculated' && (
+          <div className="calculated-field-config">
+            <div className="alert alert-info">
+              <strong>🧮 Calculated Field Configuration</strong><br />
+              This field will automatically calculate values based on other form fields.
+            </div>
+
+            {/* Calculation Type */}
+            <div className="form-group">
+              <label htmlFor={`field-calc-type-${index}`} className="form-label">Calculation Type: </label>
+              <select
+                id={`field-calc-type-${index}`}
+                className="form-control"
+                value={field.calculationType || 'sum'}
+                onChange={(e) => onUpdate(index, {...field, calculationType: e.target.value as any})}
+              >
+                <option value="sum">➕ Sum (Add all values)</option>
+                <option value="subtract">➖ Subtract (First - Others)</option>
+                <option value="multiply">✖️ Multiply (All values)</option>
+                <option value="divide">➗ Divide (First ÷ Others)</option>
+                <option value="average">📊 Average</option>
+                <option value="percentage">📈 Percentage (First/Second * 100)</option>
+                <option value="custom">⚙️ Custom Formula</option>
+              </select>
+            </div>
+
+            {/* Source Fields */}
+            <div className="form-group">
+              <label htmlFor={`field-source-fields-${index}`} className="form-label">Source Fields (comma-separated IDs): </label>
+              <input
+                id={`field-source-fields-${index}`}
+                type="text"
+                className="form-control"
+                value={field.sourceFields?.join(',') || ''}
+                onChange={(e) => onUpdate(index, {...field, sourceFields: e.target.value.split(',').map(s => s.trim()).filter(s => s)})}
+                placeholder="field_1,field_2,field_3"
+              />
+              <small className="form-text text-muted">
+                Enter the IDs of fields to use in calculation (e.g., field_1,field_2)
+              </small>
+            </div>
+
+            {/* Custom Formula (only for custom type) */}
+            {field.calculationType === 'custom' && (
+              <div className="form-group">
+                <label htmlFor={`field-custom-formula-${index}`} className="form-label">Custom Formula: </label>
+                <textarea
+                  id={`field-custom-formula-${index}`}
+                  className="form-control"
+                  rows={3}
+                  value={field.customFormula || ''}
+                  onChange={(e) => onUpdate(index, {...field, customFormula: e.target.value})}
+                  placeholder="e.g., (field_1 + field_2) * 0.1"
+                />
+                <small className="form-text text-muted">
+                  Use field IDs as variables. Example: (field_1 + field_2) * 1.18 for tax calculation
+                </small>
+              </div>
+            )}
+
+            {/* Display Options */}
+            <div className="row">
+              <div className="col-md-4">
+                <div className="form-group">
+                  <label htmlFor={`field-decimal-places-${index}`} className="form-label">Decimal Places: </label>
+                  <input
+                    id={`field-decimal-places-${index}`}
+                    type="number"
+                    className="form-control"
+                    min="0"
+                    max="10"
+                    value={field.decimalPlaces || 2}
+                    onChange={(e) => onUpdate(index, {...field, decimalPlaces: parseInt(e.target.value) || 2})}
+                  />
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="form-group">
+                  <label htmlFor={`field-prefix-${index}`} className="form-label">Prefix: </label>
+                  <input
+                    id={`field-prefix-${index}`}
+                    type="text"
+                    className="form-control"
+                    value={field.prefix || ''}
+                    onChange={(e) => onUpdate(index, {...field, prefix: e.target.value})}
+                    placeholder="₹, $, etc."
+                  />
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="form-group">
+                  <label htmlFor={`field-suffix-${index}`} className="form-label">Suffix: </label>
+                  <input
+                    id={`field-suffix-${index}`}
+                    type="text"
+                    className="form-control"
+                    value={field.suffix || ''}
+                    onChange={(e) => onUpdate(index, {...field, suffix: e.target.value})}
+                    placeholder="%, kg, etc."
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 

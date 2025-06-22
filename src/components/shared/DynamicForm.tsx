@@ -3,6 +3,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import OfficeService from '../../services/officeService';
 import { supabasePageService } from '../admin/business/services/supabasePageService';
+import { CalculationEngine } from '../../utils/calculationEngine';
 import './DynamicForm.css'; // We'll create this CSS file next
 
 // Interfaces for form configuration
@@ -14,13 +15,20 @@ export interface FormFieldOption {
 export interface FormField {
   id: string; // Unique ID for the field, can be used as name
   label: string;
-  type: 'text' | 'textarea' | 'dropdown' | 'radio' | 'button' | 'checkbox' | 'number' | 'date' | 'file' | 'section' | 'switch' | 'checkbox-group'; // Added 'switch' and 'checkbox-group'
+  type: 'text' | 'textarea' | 'dropdown' | 'radio' | 'button' | 'checkbox' | 'number' | 'date' | 'file' | 'section' | 'switch' | 'checkbox-group' | 'calculated'; // Added 'calculated'
   options?: FormFieldOption[]; // Updated to use FormFieldOption interface
   placeholder?: string;
   required?: boolean;
   defaultValue?: string | number | boolean | string[]; // Allow string array for checkbox-group
   min?: number; // For number type
   max?: number; // For number type
+  // For calculated fields
+  calculationType?: 'sum' | 'subtract' | 'multiply' | 'divide' | 'average' | 'percentage' | 'custom';
+  sourceFields?: string[]; // Array of field IDs to use in calculation
+  customFormula?: string; // Custom JavaScript formula for advanced calculations
+  decimalPlaces?: number; // Number of decimal places to show
+  prefix?: string; // Prefix for display (e.g., "$", "₹")
+  suffix?: string; // Suffix for display (e.g., "%", "kg")
 }
 
 export interface FormConfig {
@@ -307,22 +315,32 @@ const DynamicForm = React.forwardRef<DynamicFormRef, DynamicFormProps>(({ cardId
 
   const handleChange = (fieldId: string, value: any, type: FormField['type']) => {
     setFormData(prevData => {
+      let updatedData;
       if (type === 'checkbox-group') {
         const currentValues = prevData[fieldId] || [];
         const newValue = value as string; // Value of the checkbox that changed
         const newArray = currentValues.includes(newValue)
           ? currentValues.filter((item: string) => item !== newValue)
           : [...currentValues, newValue];
-        return {
+        updatedData = {
           ...prevData,
           [fieldId]: newArray,
         };
+      } else {
+        updatedData = {
+          ...prevData,
+          [fieldId]: type === 'checkbox' || type === 'switch' ? (value as HTMLInputElement).checked : value,
+        };
       }
-      return {
-        ...prevData,
-        [fieldId]: type === 'checkbox' || type === 'switch' ? (value as HTMLInputElement).checked : value,
-      };
+
+      // Update calculated fields after any data change
+      if (formConfig) {
+        updatedData = CalculationEngine.updateCalculatedFields(formConfig.fields, updatedData);
+      }
+
+      return updatedData;
     });
+
     // Clear error for this field on change
     if (errors[fieldId]) {
       setErrors(prevErrors => {
@@ -614,6 +632,28 @@ const DynamicForm = React.forwardRef<DynamicFormRef, DynamicFormProps>(({ cardId
         return null; 
       case 'section':
         return <h4 className="section-title">{field.label}</h4>;
+      case 'calculated':
+        return (
+          <div className="calculated-field">
+            <div className="calculated-value-display">
+              <span className="calculated-icon">🧮</span>
+              <span className="calculated-value">
+                {formData[field.id] || '0.00'}
+              </span>
+            </div>
+            <small className="calculated-info text-muted">
+              {field.calculationType === 'custom'
+                ? 'Custom calculation'
+                : `${field.calculationType?.toUpperCase()} of selected fields`}
+            </small>
+            <input
+              type="hidden"
+              id={field.id}
+              name={field.id}
+              value={formData[field.id] || ''}
+            />
+          </div>
+        );
       default:
         return null;
     }
