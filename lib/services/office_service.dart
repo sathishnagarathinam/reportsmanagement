@@ -279,7 +279,9 @@ class OfficeService {
   }
 
   /// Fetches office names for the current user using hierarchical filtering
-  /// Returns user's office + all offices that report TO the user's office
+  /// - Division users: See all offices under their division
+  /// - Region users: See all offices under their region
+  /// - Office users: See offices under their reporting office
   static Future<List<String>> fetchUserSpecificOfficeNames() async {
     try {
       // Get current user's office name
@@ -306,8 +308,285 @@ class OfficeService {
       }
 
       print(
-          'OfficeService: Building hierarchical office list for user: $userOfficeName');
+          '🔍 OfficeService: Building hierarchical office list for user: $userOfficeName');
 
+      // Determine user level and get appropriate office list
+      print('🔍 OfficeService: Calling _getOfficesByUserLevel...');
+      List<String> officeList = await _getOfficesByUserLevel(userOfficeName);
+      print(
+          '🔍 OfficeService: _getOfficesByUserLevel returned: ${officeList.length} offices');
+      print('📋 OfficeService: Raw office list: $officeList');
+
+      // Remove duplicates and sort
+      officeList = officeList.toSet().toList();
+      officeList.sort();
+      print(
+          '🔍 OfficeService: After deduplication and sorting: ${officeList.length} offices');
+      print('📋 OfficeService: Final unique office list: $officeList');
+
+      // Cache the user-specific result
+      _userSpecificCache[cacheKey] = officeList;
+      _userCacheTimestamps[cacheKey] = DateTime.now();
+
+      print(
+          '✅ OfficeService: Successfully returned ${officeList.length} hierarchical office names');
+      return officeList;
+    } catch (e) {
+      print('OfficeService: Error fetching hierarchical office names: $e');
+
+      // Fallback to cached user-specific data if available
+      Map<String, String?> userOfficeData = await _getCurrentUserOfficeData();
+      String? userOfficeName = userOfficeData['officeName'];
+      if (userOfficeName != null &&
+          _userSpecificCache.containsKey(userOfficeName)) {
+        print(
+            'OfficeService: Returning expired cached office names due to error');
+        return _userSpecificCache[userOfficeName]!;
+      }
+
+      // Final fallback to user office only if we can get it
+      if (userOfficeName != null && userOfficeName.isNotEmpty) {
+        print('OfficeService: Returning user office as final fallback');
+        return [userOfficeName];
+      }
+
+      // Ultimate fallback to empty list
+      print('OfficeService: Returning empty list due to error');
+      return [];
+    }
+  }
+
+  /// Determines user level and returns appropriate office list
+  static Future<List<String>> _getOfficesByUserLevel(
+      String userOfficeName) async {
+    try {
+      // Get user's office details from Supabase
+      final userOfficeDetails = await getOfficeDetails(userOfficeName);
+
+      if (userOfficeDetails == null) {
+        print(
+            'OfficeService: Could not find office details for: $userOfficeName');
+        return [userOfficeName];
+      }
+
+      final userRegion = userOfficeDetails['region'] as String?;
+      final userDivision = userOfficeDetails['division'] as String?;
+
+      print(
+          'OfficeService: User office details - Region: $userRegion, Division: $userDivision');
+
+      // Check if user is at division level
+      if (_isDivisionLevel(userOfficeName)) {
+        print(
+            'OfficeService: User is at division level, fetching all offices under division: $userOfficeName');
+        return await _getOfficesByDivision(userOfficeName);
+      }
+
+      // Check if user is at region level
+      if (_isRegionLevel(userOfficeName)) {
+        print(
+            'OfficeService: User is at region level, fetching all offices in region: $userRegion');
+        return await _getOfficesByRegion(userRegion);
+      }
+
+      // Default: office level - get offices under same reporting office
+      print(
+          'OfficeService: User is at office level, fetching hierarchical offices');
+      return await _getOfficesUnderReportingOffice(userOfficeName);
+    } catch (e) {
+      print('OfficeService: Error determining user level: $e');
+      return [userOfficeName];
+    }
+  }
+
+  /// Checks if user is at division level
+  static bool _isDivisionLevel(String officeName) {
+    return officeName.trim().toLowerCase().endsWith('division');
+  }
+
+  /// Checks if user is at region level (contains "region" but not "division")
+  static bool _isRegionLevel(String officeName) {
+    final lowerName = officeName.trim().toLowerCase();
+    return lowerName.contains('region') && !lowerName.endsWith('division');
+  }
+
+  /// Gets all offices under a specific division
+  /// For divisional offices like "Coimbatore division", finds all offices
+  /// by querying the Division column directly
+  static Future<List<String>> _getOfficesByDivision(String? division) async {
+    if (division == null || division.trim().isEmpty) {
+      return [];
+    }
+
+    try {
+      print('🔍 OfficeService: Starting division lookup for: $division');
+
+      // Extract the division area name (e.g., "Coimbatore" from "Coimbatore division")
+      String extractedDivision =
+          division.toLowerCase().replaceAll(' division', '').trim();
+      print('🔍 OfficeService: Extracted division area: $extractedDivision');
+
+      // First, let's see what Division values actually exist in the database
+      print(
+          '🔍 OfficeService: Checking what Division values exist in database...');
+      final sampleResponse = await _supabase
+          .from('offices')
+          .select('"Office name", "Division"')
+          .limit(20);
+
+      print('🔍 OfficeService: Sample Division values in database:');
+      final uniqueDivisions = <String>{};
+      for (var office in sampleResponse) {
+        final division = office['Division'] as String?;
+        if (division != null) {
+          uniqueDivisions.add(division);
+        }
+      }
+      print(
+          '📋 OfficeService: Unique Division values: ${uniqueDivisions.toList()}');
+
+      // Check if any division contains our extracted division name
+      final matchingDivisions = uniqueDivisions
+          .where((div) =>
+              div.toLowerCase().contains(extractedDivision.toLowerCase()))
+          .toList();
+      print(
+          '📋 OfficeService: Divisions containing "$extractedDivision": $matchingDivisions');
+
+      // Query all offices where Division column matches the extracted division name
+      print(
+          '🔍 OfficeService: Querying offices where "Division" = "$extractedDivision"');
+      final response = await _supabase
+          .from('offices')
+          .select('"Office name"')
+          .eq('"Division"', extractedDivision)
+          .order('"Office name"', ascending: true);
+
+      List<String> offices = [];
+      for (var office in response) {
+        String officeName = office['Office name'] as String;
+        offices.add(officeName);
+      }
+
+      print(
+          '🔍 OfficeService: Found ${offices.length} offices in Division "$extractedDivision"');
+      print('📋 OfficeService: Offices: $offices');
+
+      // If no exact match found, try case-insensitive search
+      if (offices.isEmpty) {
+        print(
+            '🔍 OfficeService: No exact match found, trying case-insensitive search...');
+        final iLikeResponse = await _supabase
+            .from('offices')
+            .select('"Office name"')
+            .ilike('"Division"', '%$extractedDivision%')
+            .order('"Office name"', ascending: true);
+
+        for (var office in iLikeResponse) {
+          String officeName = office['Office name'] as String;
+          offices.add(officeName);
+        }
+        print(
+            '🔍 OfficeService: Case-insensitive search found ${offices.length} offices');
+        print('📋 OfficeService: Case-insensitive offices: $offices');
+      }
+
+      // Always include the division office itself if not already in the list
+      if (!offices.contains(division)) {
+        print('➕ OfficeService: Adding division office to list: $division');
+        offices.add(division);
+        offices.sort();
+      }
+
+      print(
+          '✅ OfficeService: Final result - ${offices.length} offices under division: $division');
+      return offices;
+    } catch (e) {
+      print('❌ OfficeService: Error fetching offices by division: $e');
+      return [division]; // Return at least the division office itself
+    }
+  }
+
+  /// Gets all offices under a specific region
+  /// For regional offices like "Tamil Nadu Region", finds all offices
+  /// where Region column matches the region name
+  static Future<List<String>> _getOfficesByRegion(String? region) async {
+    if (region == null || region.trim().isEmpty) {
+      return [];
+    }
+
+    try {
+      print('🔍 OfficeService: Starting region lookup for: $region');
+
+      // First, let's see what Region values actually exist in the database
+      print(
+          '🔍 OfficeService: Checking what Region values exist in database...');
+      final sampleResponse = await _supabase
+          .from('offices')
+          .select('"Office name", "Region"')
+          .limit(20);
+
+      print('🔍 OfficeService: Sample Region values in database:');
+      final uniqueRegions = <String>{};
+      for (var office in sampleResponse) {
+        final regionValue = office['Region'] as String?;
+        if (regionValue != null) {
+          uniqueRegions.add(regionValue);
+        }
+      }
+      print(
+          '📋 OfficeService: Unique Region values: ${uniqueRegions.toList()}');
+
+      // Query all offices where Region column matches the region name
+      print('🔍 OfficeService: Querying offices where "Region" = "$region"');
+      final response = await _supabase
+          .from('offices')
+          .select('"Office name"')
+          .eq('"Region"', region)
+          .order('"Office name"', ascending: true);
+
+      List<String> offices = [];
+      for (var office in response) {
+        String officeName = office['Office name'] as String;
+        offices.add(officeName);
+      }
+
+      print(
+          '🔍 OfficeService: Found ${offices.length} offices in Region "$region"');
+      print('📋 OfficeService: Offices: $offices');
+
+      // If no exact match found, try case-insensitive search
+      if (offices.isEmpty) {
+        print(
+            '🔍 OfficeService: No exact match found, trying case-insensitive search...');
+        final iLikeResponse = await _supabase
+            .from('offices')
+            .select('"Office name"')
+            .ilike('"Region"', '%$region%')
+            .order('"Office name"', ascending: true);
+
+        for (var office in iLikeResponse) {
+          String officeName = office['Office name'] as String;
+          offices.add(officeName);
+        }
+        print(
+            '🔍 OfficeService: Case-insensitive search found ${offices.length} offices');
+        print('📋 OfficeService: Case-insensitive offices: $offices');
+      }
+
+      print(
+          '✅ OfficeService: Final result - ${offices.length} offices under region: $region');
+      return offices;
+    } catch (e) {
+      print('❌ OfficeService: Error fetching offices by region: $e');
+      return [];
+    }
+  }
+
+  /// Gets offices under the same reporting office (original logic)
+  static Future<List<String>> _getOfficesUnderReportingOffice(
+      String userOfficeName) async {
+    try {
       // Query Supabase to find all offices that report TO the user's office
       print(
           'OfficeService: Querying offices that report to user office: $userOfficeName');
@@ -342,39 +621,10 @@ class OfficeService {
             'OfficeService: No offices report to user office, showing user office only');
       }
 
-      // Remove duplicates and sort
-      officeList = officeList.toSet().toList();
-      officeList.sort();
-
-      // Cache the user-specific result
-      _userSpecificCache[cacheKey] = officeList;
-      _userCacheTimestamps[cacheKey] = DateTime.now();
-
-      print(
-          'OfficeService: Successfully returned ${officeList.length} hierarchical office names: $officeList');
       return officeList;
     } catch (e) {
-      print('OfficeService: Error fetching hierarchical office names: $e');
-
-      // Fallback to cached user-specific data if available
-      Map<String, String?> userOfficeData = await _getCurrentUserOfficeData();
-      String? userOfficeName = userOfficeData['officeName'];
-      if (userOfficeName != null &&
-          _userSpecificCache.containsKey(userOfficeName)) {
-        print(
-            'OfficeService: Returning expired cached office names due to error');
-        return _userSpecificCache[userOfficeName]!;
-      }
-
-      // Final fallback to user office only if we can get it
-      if (userOfficeName != null && userOfficeName.isNotEmpty) {
-        print('OfficeService: Returning user office as final fallback');
-        return [userOfficeName];
-      }
-
-      // Ultimate fallback to empty list
-      print('OfficeService: Returning empty list due to error');
-      return [];
+      print('OfficeService: Error fetching offices under reporting office: $e');
+      return [userOfficeName];
     }
   }
 

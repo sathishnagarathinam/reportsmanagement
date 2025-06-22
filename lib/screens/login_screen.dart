@@ -15,6 +15,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _employeeIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final FocusNode _employeeIdFocusNode = FocusNode();
+  final FocusNode _passwordFocusNode = FocusNode();
 
   String _errorMessage = '';
   bool _isLoading = false;
@@ -117,76 +119,93 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _employeeIdController.dispose();
     _passwordController.dispose();
+    _employeeIdFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context)
-          .scaffoldBackgroundColor, // Use theme's scaffold background color
-      child: Stack(
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+    final isKeyboardVisible = keyboardHeight > 0;
+
+    return Scaffold(
+      resizeToAvoidBottomInset:
+          true, // Automatically resize when keyboard appears
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      body: Stack(
         children: [
-          // Background with a curve (main solid color) - similar to DashboardScreen
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: MediaQuery.of(context).size.height *
-                  0.4, // Adjust height as needed
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor, // Your primary color
+          // Background with a curve (main solid color) - adaptive height
+          if (!isKeyboardVisible) // Hide background when keyboard is visible
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: MediaQuery.of(context).size.height * 0.4,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(30),
+                    bottomRight: Radius.circular(30),
+                  ),
+                ),
+              ),
+            ),
+          // Wave/Blob Shapes using CustomPainter
+          if (!isKeyboardVisible) // Hide waves when keyboard is visible
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: ClipRRect(
                 borderRadius: const BorderRadius.only(
                   bottomLeft: Radius.circular(30),
                   bottomRight: Radius.circular(30),
                 ),
-              ),
-            ),
-          ),
-          // Wave/Blob Shapes using CustomPainter - similar to DashboardScreen
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.only(
-                bottomLeft: Radius.circular(30),
-                bottomRight: Radius.circular(30),
-              ),
-              child: CustomPaint(
-                painter:
-                    _WavePainter(color: Colors.white), // Using white for waves
-                child: Container(
-                  height: MediaQuery.of(context).size.height *
-                      0.4, // Same height as the container above
+                child: CustomPaint(
+                  painter: _WavePainter(color: Colors.white),
+                  child: Container(
+                    height: MediaQuery.of(context).size.height * 0.4,
+                  ),
                 ),
               ),
             ),
-          ),
-          // Logo
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.05, // Adjust position
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Image.asset(
-                'assets/images/Indiapost_Logo.png',
-                height: 120,
-                width: 120,
+          // Logo - adaptive position
+          if (!isKeyboardVisible) // Hide logo when keyboard is visible to save space
+            Positioned(
+              top: MediaQuery.of(context).size.height * 0.05,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Image.asset(
+                  'assets/images/Indiapost_Logo.png',
+                  height: 120,
+                  width: 120,
+                ),
               ),
             ),
-          ),
-          Center(
+          SafeArea(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
+              padding: EdgeInsets.only(
+                left: 24.0,
+                right: 24.0,
+                top: 24.0,
+                bottom: MediaQuery.of(context).viewInsets.bottom +
+                    24.0, // Add keyboard padding
+              ),
               child: Form(
                 key: _formKey,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: <Widget>[
-                    const SizedBox(height: 280.0), // Space for logo and waves
+                    SizedBox(
+                      height: isKeyboardVisible
+                          ? 20.0 // Minimal space when keyboard is visible
+                          : MediaQuery.of(context).size.height *
+                              0.35, // Full space when keyboard is hidden
+                    ),
                     // Title
                     Text(
                       'Login to Reports Management System',
@@ -216,6 +235,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Employee ID TextField
                     TextFormField(
                       controller: _employeeIdController,
+                      focusNode: _employeeIdFocusNode,
+                      textInputAction: TextInputAction.next,
+                      onFieldSubmitted: (_) {
+                        FocusScope.of(context).requestFocus(_passwordFocusNode);
+                      },
                       decoration: InputDecoration(
                         labelText: 'Employee ID',
                         border: const OutlineInputBorder(),
@@ -241,6 +265,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     // Password TextField
                     TextFormField(
                       controller: _passwordController,
+                      focusNode: _passwordFocusNode,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) {
+                        _loginUser();
+                      },
                       decoration: InputDecoration(
                         labelText: 'Password',
                         border: const OutlineInputBorder(),

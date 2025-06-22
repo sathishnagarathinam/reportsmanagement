@@ -131,20 +131,47 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
         'Fetching categories with parentId: $parentCategoryId'); // Debug print
 
     try {
-      Query query = FirebaseFirestore.instance.collection('categories');
+      List<Category> fetchedCategories = [];
 
       if (parentCategoryId == null) {
-        // Fetch top-level categories (parentId is an empty string)
-        query = query.where('parentId', isEqualTo: '');
+        // Fetch top-level categories - handle both null and empty string parentId
+        // This fixes the issue where web admin creates with parentId: null
+        // but Flutter was only looking for parentId: ''
+
+        print('🔍 Fetching top-level categories...');
+
+        // Get all documents and filter in code to handle both null and empty string
+        final allSnapshot =
+            await FirebaseFirestore.instance.collection('categories').get();
+
+        for (var doc in allSnapshot.docs) {
+          final data = doc.data();
+          final parentId = data['parentId'];
+
+          // Consider it a top-level category if parentId is null, empty string, or missing
+          if (parentId == null ||
+              parentId == '' ||
+              parentId.toString().trim().isEmpty) {
+            try {
+              final category = Category.fromFirestore(doc);
+              fetchedCategories.add(category);
+              print(
+                  '✅ Added top-level category: ${category.name} (parentId: $parentId)');
+            } catch (e) {
+              print('❌ Error parsing category ${doc.id}: $e');
+            }
+          }
+        }
       } else {
-        // Fetch child categories
+        // Fetch child categories - use query for better performance
+        print('🔍 Fetching child categories for parent: $parentCategoryId');
+        Query query = FirebaseFirestore.instance.collection('categories');
         query = query.where('parentId', isEqualTo: parentCategoryId);
+        final snapshot = await query.get();
+
+        fetchedCategories =
+            snapshot.docs.map((doc) => Category.fromFirestore(doc)).toList();
       }
-
-      final snapshot = await query.get();
-
-      List<Category> fetchedCategories =
-          snapshot.docs.map((doc) => Category.fromFirestore(doc)).toList();
 
       // Filter out categories with empty or null names and invalid data
       fetchedCategories = fetchedCategories.where((category) {
@@ -195,13 +222,13 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
       case 'user':
         return FontAwesomeIcons.user;
       case 'filealt':
-        return FontAwesomeIcons.fileAlt;
+        return FontAwesomeIcons.fileLines;
       case 'aadhaar':
         return FontAwesomeIcons.idCard;
       case 'reports':
         return FontAwesomeIcons.chartBar;
       case 'settings':
-        return FontAwesomeIcons.cog;
+        return FontAwesomeIcons.gear;
       case 'fabuilding':
         return FontAwesomeIcons.building;
       case 'fabriefcase': // Added mapping for 'business development'
