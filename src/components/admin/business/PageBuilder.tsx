@@ -74,20 +74,23 @@ const PageBuilder: React.FC = () => {
   useEffect(() => {
     cardManagement.fetchCategories();
 
-    // Load saved dropdown selections from localStorage
-    const savedSelections = loadDropdownSelections();
-    if (savedSelections) {
-      if (savedSelections.selectedRegions.length > 0) {
-        state.setSelectedRegions(savedSelections.selectedRegions);
-      }
-      if (savedSelections.selectedDivisions.length > 0) {
-        state.setSelectedDivisions(savedSelections.selectedDivisions);
-      }
-      if (savedSelections.selectedOffices.length > 0) {
-        state.setSelectedOffices(savedSelections.selectedOffices);
-      }
-      if (savedSelections.selectedFrequency) {
-        state.setSelectedFrequency(savedSelections.selectedFrequency);
+    // Only load localStorage selections if no card is selected
+    // This prevents localStorage from overriding saved page configurations
+    if (!state.selectedCard) {
+      const savedSelections = loadDropdownSelections();
+      if (savedSelections) {
+        if (savedSelections.selectedRegions.length > 0) {
+          state.setSelectedRegions(savedSelections.selectedRegions);
+        }
+        if (savedSelections.selectedDivisions.length > 0) {
+          state.setSelectedDivisions(savedSelections.selectedDivisions);
+        }
+        if (savedSelections.selectedOffices.length > 0) {
+          state.setSelectedOffices(savedSelections.selectedOffices);
+        }
+        if (savedSelections.selectedFrequency) {
+          state.setSelectedFrequency(savedSelections.selectedFrequency);
+        }
       }
     }
   }, []);
@@ -135,15 +138,33 @@ const PageBuilder: React.FC = () => {
   const handleCardChange = (cardId: string) => {
     state.setSelectedCard(cardId);
     state.setActionType('');
+
+    // Clear previous page configuration and selections when changing cards
     if (!cardId) {
         state.setPageConfig(null);
         state.setFields([]);
+        // Clear dropdown selections when no card is selected
+        state.setSelectedRegions([]);
+        state.setSelectedDivisions([]);
+        state.setSelectedOffices([]);
+        state.setSelectedFrequency('');
     } else {
         const cardIsLeaf = isLeafCard(cardId, state.categories);
         const cardIsMain = isMainCard(cardId, state.categories);
         if(!cardIsLeaf || cardIsMain) {
             state.setPageConfig(null);
             state.setFields([]);
+            // Clear dropdown selections for non-leaf or main cards
+            state.setSelectedRegions([]);
+            state.setSelectedDivisions([]);
+            state.setSelectedOffices([]);
+            state.setSelectedFrequency('');
+        } else {
+            // For leaf cards, clear selections first - they will be loaded from saved config
+            state.setSelectedRegions([]);
+            state.setSelectedDivisions([]);
+            state.setSelectedOffices([]);
+            state.setSelectedFrequency('');
         }
     }
   };
@@ -185,9 +206,11 @@ const PageBuilder: React.FC = () => {
     const previousDivisions = state.selectedDivisions;
     state.setSelectedDivisions(divisions);
 
-    // Only reset dependent dropdown if divisions actually changed
-    // This prevents losing selections when component re-renders
-    if (JSON.stringify(divisions) !== JSON.stringify(previousDivisions)) {
+    // Only reset dependent dropdown if divisions actually changed AND we're not restoring selections
+    // This prevents losing selections when component re-renders or during restoration
+    const isRestoring = (window as any).pendingSavedSelections;
+    if (!isRestoring && JSON.stringify(divisions) !== JSON.stringify(previousDivisions)) {
+      console.log('🔄 Clearing offices due to division change (not during restoration)');
       state.setSelectedOffices([]);
     }
   };

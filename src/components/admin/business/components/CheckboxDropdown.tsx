@@ -27,6 +27,20 @@ const CheckboxDropdown: React.FC<CheckboxDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Debug logging for dropdown state
+  useEffect(() => {
+    if (id.includes('division') || id.includes('office')) {
+      console.log(`🔍 CheckboxDropdown [${id}]:`, {
+        label,
+        optionsCount: options.length,
+        selectedCount: selectedValues.length,
+        selectedValues,
+        optionIds: options.map(o => o.id),
+        disabled
+      });
+    }
+  }, [id, label, options, selectedValues, disabled]);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

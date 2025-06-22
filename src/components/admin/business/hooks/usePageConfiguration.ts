@@ -80,7 +80,7 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
       console.log('loadPageConfig called with no cardId');
       return;
     }
-    console.log(`loadPageConfig called for cardId: ${cardId}`);
+    console.log(`🔄 loadPageConfig called for cardId: ${cardId}`);
     setLoading(true);
     setError(null);
     try {
@@ -93,37 +93,62 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
       if (docSnap.exists()) {
         // Loading from Firebase
         data = docSnap.data() as PageConfig;
+        console.log('📄 Found page config in Firebase');
       } else {
         // If not found in Firebase, try Supabase
         try {
           data = await supabasePageService.loadPageConfig(cardId);
+          console.log('📄 Found page config in Supabase');
         } catch (supabaseError) {
-          // Not found in either database, will create new config
+          console.log('📄 No existing page config found, will create new');
         }
       }
 
       if (data) {
         setPageConfig(data);
         setFields(data.fields || []);
+
         // Load saved dropdown values - handle both old single values and new arrays
-        // Only set if current state is empty to preserve user selections
         const savedRegions = data.selectedRegions || (data.selectedRegion ? [data.selectedRegion] : []);
         const savedDivisions = data.selectedDivisions || (data.selectedDivision ? [data.selectedDivision] : []);
         const savedOffices = data.selectedOffices || (data.selectedOffice ? [data.selectedOffice] : []);
         const savedFrequency = data.selectedFrequency || '';
 
-        // Only update if current selections are empty (preserve user's current selections)
-        if (selectedRegions.length === 0 && savedRegions.length > 0) {
+        console.log('📊 Loading saved page configuration:', {
+          cardId,
+          savedRegions,
+          savedDivisions,
+          savedOffices,
+          savedFrequency
+        });
+
+        // Store saved selections to apply them after office data is loaded
+        // This prevents timing issues where selections are applied before options are available
+        (window as any).pendingSavedSelections = {
+          cardId,
+          savedRegions,
+          savedDivisions,
+          savedOffices,
+          savedFrequency,
+          timestamp: Date.now()
+        };
+
+        // Apply saved selections immediately (they will be re-applied when office data loads)
+        if (savedRegions.length > 0) {
           setSelectedRegions(savedRegions);
+          console.log('✅ Applied saved regions:', savedRegions);
         }
-        if (selectedDivisions.length === 0 && savedDivisions.length > 0) {
+        if (savedDivisions.length > 0) {
           setSelectedDivisions(savedDivisions);
+          console.log('✅ Applied saved divisions:', savedDivisions);
         }
-        if (selectedOffices.length === 0 && savedOffices.length > 0) {
+        if (savedOffices.length > 0) {
           setSelectedOffices(savedOffices);
+          console.log('✅ Applied saved offices:', savedOffices);
         }
-        if (!selectedFrequency && savedFrequency) {
+        if (savedFrequency) {
           setSelectedFrequency(savedFrequency);
+          console.log('✅ Applied saved frequency:', savedFrequency);
         }
       } else {
         // Create new page config
