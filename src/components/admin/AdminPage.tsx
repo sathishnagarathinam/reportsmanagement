@@ -33,21 +33,46 @@ const AdminPage: React.FC = () => {
       <div className="main-content">
         <div className="page-title">
           Admin Dashboard
-          <button
-            onClick={() => setShowOfficeTest(!showOfficeTest)}
-            style={{
-              marginLeft: '20px',
-              padding: '8px 16px',
-              backgroundColor: showOfficeTest ? '#dc3545' : '#007bff',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '14px'
-            }}
-          >
-            {showOfficeTest ? 'Hide Office Test' : 'Show Office Loading Test'}
-          </button>
+          <div style={{ marginLeft: '20px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button
+              onClick={() => setShowOfficeTest(!showOfficeTest)}
+              style={{
+                padding: '10px 20px',
+                backgroundColor: showOfficeTest ? '#dc3545' : '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.15)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
+              }}
+            >
+              {showOfficeTest ? '🔧 Hide Debug Tools' : '🔧 Show Offline Load Test'}
+            </button>
+            {showOfficeTest && (
+              <span style={{
+                padding: '6px 12px',
+                backgroundColor: '#fff3cd',
+                color: '#856404',
+                border: '1px solid #ffeaa7',
+                borderRadius: '4px',
+                fontSize: '12px',
+                fontWeight: 'bold'
+              }}>
+                DEBUG MODE ACTIVE
+              </span>
+            )}
+          </div>
         </div>
         <StatsCards />
         {showOfficeTest ? <OfficeLoadingTest /> : <PageBuilder />}

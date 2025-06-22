@@ -80,7 +80,7 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
       console.log('loadPageConfig called with no cardId');
       return;
     }
-    console.log(`loadPageConfig called for cardId: ${cardId}`);
+    console.log(`🔄 loadPageConfig called for cardId: ${cardId}`);
     setLoading(true);
     setError(null);
     try {
@@ -93,23 +93,63 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
       if (docSnap.exists()) {
         // Loading from Firebase
         data = docSnap.data() as PageConfig;
+        console.log('📄 Found page config in Firebase');
       } else {
         // If not found in Firebase, try Supabase
         try {
           data = await supabasePageService.loadPageConfig(cardId);
+          console.log('📄 Found page config in Supabase');
         } catch (supabaseError) {
-          // Not found in either database, will create new config
+          console.log('📄 No existing page config found, will create new');
         }
       }
 
       if (data) {
         setPageConfig(data);
         setFields(data.fields || []);
+
         // Load saved dropdown values - handle both old single values and new arrays
-        setSelectedRegions(data.selectedRegions || (data.selectedRegion ? [data.selectedRegion] : []));
-        setSelectedDivisions(data.selectedDivisions || (data.selectedDivision ? [data.selectedDivision] : []));
-        setSelectedOffices(data.selectedOffices || (data.selectedOffice ? [data.selectedOffice] : []));
-        setSelectedFrequency(data.selectedFrequency || '');
+        const savedRegions = data.selectedRegions || (data.selectedRegion ? [data.selectedRegion] : []);
+        const savedDivisions = data.selectedDivisions || (data.selectedDivision ? [data.selectedDivision] : []);
+        const savedOffices = data.selectedOffices || (data.selectedOffice ? [data.selectedOffice] : []);
+        const savedFrequency = data.selectedFrequency || '';
+
+        console.log('📊 Loading saved page configuration:', {
+          cardId,
+          savedRegions,
+          savedDivisions,
+          savedOffices,
+          savedFrequency
+        });
+
+        // Store saved selections to apply them after office data is loaded
+        // This prevents timing issues where selections are applied before options are available
+        (window as any).pendingSavedSelections = {
+          cardId,
+          savedRegions,
+          savedDivisions,
+          savedOffices,
+          savedFrequency,
+          timestamp: Date.now()
+        };
+
+        // Apply saved selections immediately (they will be re-applied when office data loads)
+        if (savedRegions.length > 0) {
+          setSelectedRegions(savedRegions);
+          console.log('✅ Applied saved regions:', savedRegions);
+        }
+        if (savedDivisions.length > 0) {
+          setSelectedDivisions(savedDivisions);
+          console.log('✅ Applied saved divisions:', savedDivisions);
+        }
+        if (savedOffices.length > 0) {
+          setSelectedOffices(savedOffices);
+          console.log('✅ Applied saved offices:', savedOffices);
+        }
+        if (savedFrequency) {
+          setSelectedFrequency(savedFrequency);
+          console.log('✅ Applied saved frequency:', savedFrequency);
+        }
       } else {
         // Create new page config
         const card = categories.find(c => c.id === cardId);
@@ -134,7 +174,7 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
     } finally {
       setLoading(false);
     }
-  }, [categories, setLoading, setError, setPageConfig, setFields, setSelectedRegions, setSelectedDivisions, setSelectedOffices, setSelectedFrequency]);
+  }, [categories, setLoading, setError, setPageConfig, setFields, setSelectedRegions, setSelectedDivisions, setSelectedOffices, setSelectedFrequency, selectedRegions, selectedDivisions, selectedOffices, selectedFrequency]);
 
   const addField = () => {
     const newField: FormField = {
@@ -198,6 +238,22 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
 
   const removeField = (index: number) => {
     setFields(fields.filter((_, i) => i !== index));
+  };
+
+  const moveFieldUp = (index: number) => {
+    if (index > 0) {
+      const newFields = [...fields];
+      [newFields[index - 1], newFields[index]] = [newFields[index], newFields[index - 1]];
+      setFields(newFields);
+    }
+  };
+
+  const moveFieldDown = (index: number) => {
+    if (index < fields.length - 1) {
+      const newFields = [...fields];
+      [newFields[index], newFields[index + 1]] = [newFields[index + 1], newFields[index]];
+      setFields(newFields);
+    }
   };
 
   const handleSave = async () => {
@@ -367,6 +423,8 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
     addFieldFromDynamic,
     updateField,
     removeField,
+    moveFieldUp,
+    moveFieldDown,
     handleSave,
     handlePreview,
   };

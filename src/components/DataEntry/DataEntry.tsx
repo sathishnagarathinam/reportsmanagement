@@ -99,7 +99,12 @@ const DataEntry: React.FC = () => {
   // Recursive function to render cards with their children
   // Modify the renderCard function to remove child card rendering
   // Add this function before renderCard
-  const getIconComponent = (title: string): IconType => {
+  const getIconComponent = (title: string | undefined | null): IconType => {
+    // Handle undefined, null, or empty titles
+    if (!title || typeof title !== 'string') {
+      return FaEllipsisH; // Default icon for undefined/null titles
+    }
+
     const normalizedTitle = title.toLowerCase();
     if (normalizedTitle.includes('business')) return FaBriefcase;
     if (normalizedTitle.includes('tech')) return FaLaptopCode;
@@ -115,7 +120,12 @@ const DataEntry: React.FC = () => {
   // Update the renderCard function's getIconColor
   const renderCard = (category: Category) => {
     const IconComponent = getIconComponent(category.title);
-    const getIconColor = (title: string) => {
+    const getIconColor = (title: string | undefined | null) => {
+      // Handle undefined, null, or empty titles
+      if (!title || typeof title !== 'string') {
+        return '#607D8B'; // Default color for undefined/null titles
+      }
+
       const normalizedTitle = title.toLowerCase();
       if (normalizedTitle.includes('business')) return '#4CAF50';
       if (normalizedTitle.includes('tech')) return '#2196F3';
@@ -171,7 +181,7 @@ const DataEntry: React.FC = () => {
         <div className="category-icon" style={{ color: getIconColor(category.title) }}>
           {React.createElement(IconComponent as React.ComponentType<any>, { size: 40 })}
         </div>
-        <h3>{category.title}</h3>
+        <h3>{category.title || 'Unnamed Category'}</h3>
       </div>
     );
   };
@@ -184,7 +194,8 @@ const DataEntry: React.FC = () => {
         <StatsCards />
         <div className="category-grid">
           {categories
-            .filter(category => !category.parentId) // Only show top-level cards
+            .filter(category => !category.parentId || category.parentId === '') // Only show top-level cards (handle both null and empty string)
+            .filter(category => category.title && category.title.trim() !== '' && category.title !== 'undefined') // Filter out undefined titles
             .map(category => renderCard(category))}
         </div>
       </div>

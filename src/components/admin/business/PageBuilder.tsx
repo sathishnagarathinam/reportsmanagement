@@ -12,6 +12,7 @@ import PageBuilderContent from './components/PageBuilderContent';
 import ReportConfiguration from './components/ReportConfiguration';
 // Debug components removed - Supabase integration working
 import { isLeafCard, isMainCard } from './utils/cardUtils';
+import { saveDropdownSelections, loadDropdownSelections } from './utils/dropdownPersistence';
 
 // All interfaces and utilities are now imported from separate files
 
@@ -72,7 +73,45 @@ const PageBuilder: React.FC = () => {
   // Initialize data on component mount
   useEffect(() => {
     cardManagement.fetchCategories();
+
+    // Only load localStorage selections if no card is selected
+    // This prevents localStorage from overriding saved page configurations
+    if (!state.selectedCard) {
+      const savedSelections = loadDropdownSelections();
+      if (savedSelections) {
+        if (savedSelections.selectedRegions.length > 0) {
+          state.setSelectedRegions(savedSelections.selectedRegions);
+        }
+        if (savedSelections.selectedDivisions.length > 0) {
+          state.setSelectedDivisions(savedSelections.selectedDivisions);
+        }
+        if (savedSelections.selectedOffices.length > 0) {
+          state.setSelectedOffices(savedSelections.selectedOffices);
+        }
+        if (savedSelections.selectedFrequency) {
+          state.setSelectedFrequency(savedSelections.selectedFrequency);
+        }
+      }
+    }
   }, []);
+
+  // Save dropdown selections to localStorage whenever they change
+  useEffect(() => {
+    const selections = {
+      selectedRegions: state.selectedRegions,
+      selectedDivisions: state.selectedDivisions,
+      selectedOffices: state.selectedOffices,
+      selectedFrequency: state.selectedFrequency,
+    };
+
+    // Only save if at least one selection is made
+    if (selections.selectedRegions.length > 0 ||
+        selections.selectedDivisions.length > 0 ||
+        selections.selectedOffices.length > 0 ||
+        selections.selectedFrequency) {
+      saveDropdownSelections(selections);
+    }
+  }, [state.selectedRegions, state.selectedDivisions, state.selectedOffices, state.selectedFrequency]);
 
   // Handle card and action changes
   useEffect(() => {
@@ -99,15 +138,33 @@ const PageBuilder: React.FC = () => {
   const handleCardChange = (cardId: string) => {
     state.setSelectedCard(cardId);
     state.setActionType('');
+
+    // Clear previous page configuration and selections when changing cards
     if (!cardId) {
         state.setPageConfig(null);
         state.setFields([]);
+        // Clear dropdown selections when no card is selected
+        state.setSelectedRegions([]);
+        state.setSelectedDivisions([]);
+        state.setSelectedOffices([]);
+        state.setSelectedFrequency('');
     } else {
         const cardIsLeaf = isLeafCard(cardId, state.categories);
         const cardIsMain = isMainCard(cardId, state.categories);
         if(!cardIsLeaf || cardIsMain) {
             state.setPageConfig(null);
             state.setFields([]);
+            // Clear dropdown selections for non-leaf or main cards
+            state.setSelectedRegions([]);
+            state.setSelectedDivisions([]);
+            state.setSelectedOffices([]);
+            state.setSelectedFrequency('');
+        } else {
+            // For leaf cards, clear selections first - they will be loaded from saved config
+            state.setSelectedRegions([]);
+            state.setSelectedDivisions([]);
+            state.setSelectedOffices([]);
+            state.setSelectedFrequency('');
         }
     }
   };
@@ -134,20 +191,36 @@ const PageBuilder: React.FC = () => {
 
   // Event handlers for report configuration dropdowns - updated for arrays
   const handleRegionsChange = (regions: string[]) => {
+    const previousRegions = state.selectedRegions;
     state.setSelectedRegions(regions);
-    // Reset dependent dropdowns when regions change
-    state.setSelectedDivisions([]);
-    state.setSelectedOffices([]);
+
+    // Only reset dependent dropdowns if regions actually changed
+    // This prevents losing selections when component re-renders
+    if (JSON.stringify(regions) !== JSON.stringify(previousRegions)) {
+      state.setSelectedDivisions([]);
+      state.setSelectedOffices([]);
+    }
   };
 
   const handleDivisionsChange = (divisions: string[]) => {
+    const previousDivisions = state.selectedDivisions;
     state.setSelectedDivisions(divisions);
-    // Reset dependent dropdown when divisions change
-    state.setSelectedOffices([]);
+
+    // Only reset dependent dropdown if divisions actually changed AND we're not restoring selections
+    // This prevents losing selections when component re-renders or during restoration
+    const isRestoring = (window as any).pendingSavedSelections;
+    if (!isRestoring && JSON.stringify(divisions) !== JSON.stringify(previousDivisions)) {
+      console.log('🔄 Clearing offices due to division change (not during restoration)');
+      state.setSelectedOffices([]);
+    }
   };
 
   const handleOfficesChange = (offices: string[]) => {
     state.setSelectedOffices(offices);
+  };
+
+  const handleOfficeTypesChange = (officeTypes: string[]) => {
+    state.setSelectedOfficeTypes(officeTypes);
   };
 
   const handleFrequencyChange = (frequency: string) => {
@@ -255,10 +328,12 @@ const PageBuilder: React.FC = () => {
                 selectedRegions={state.selectedRegions}
                 selectedDivisions={state.selectedDivisions}
                 selectedOffices={state.selectedOffices}
+                selectedOfficeTypes={state.selectedOfficeTypes}
                 selectedFrequency={state.selectedFrequency}
                 onRegionsChange={handleRegionsChange}
                 onDivisionsChange={handleDivisionsChange}
                 onOfficesChange={handleOfficesChange}
+                onOfficeTypesChange={handleOfficeTypesChange}
                 onFrequencyChange={handleFrequencyChange}
               />
             )}
@@ -271,6 +346,8 @@ const PageBuilder: React.FC = () => {
                 onAddField={pageConfiguration.addField}
                 onUpdateField={pageConfiguration.updateField}
                 onRemoveField={pageConfiguration.removeField}
+                onMoveFieldUp={pageConfiguration.moveFieldUp}
+                onMoveFieldDown={pageConfiguration.moveFieldDown}
                 onSave={pageConfiguration.handleSave}
                 onPreview={pageConfiguration.handlePreview}
                 loading={state.loading}

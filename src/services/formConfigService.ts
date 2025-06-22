@@ -4,11 +4,18 @@ import { db } from '../config/firebase';
 export interface FormField {
   id: string;
   label: string;
-  type: 'text' | 'textarea' | 'dropdown' | 'radio' | 'button' | 'checkbox' | 'number' | 'date' | 'file' | 'section' | 'switch' | 'checkbox-group';
+  type: 'text' | 'textarea' | 'dropdown' | 'radio' | 'button' | 'checkbox' | 'number' | 'date' | 'file' | 'section' | 'switch' | 'checkbox-group' | 'calculated';
   options?: Array<{ label: string; value: string }>;
   placeholder?: string;
   required?: boolean;
   defaultValue?: string | number | boolean | string[];
+  // For calculated fields
+  calculationType?: 'sum' | 'subtract' | 'multiply' | 'divide' | 'average' | 'percentage' | 'custom';
+  sourceFields?: string[];
+  customFormula?: string;
+  decimalPlaces?: number;
+  prefix?: string;
+  suffix?: string;
 }
 
 export interface FormConfig {

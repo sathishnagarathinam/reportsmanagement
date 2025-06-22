@@ -11,7 +11,9 @@ import {
   List,
   ListItem,
   ListItemText,
-  Divider
+  Divider,
+  Button,
+  Grid
 } from '@mui/material';
 import { useOfficeDataEnhanced } from './hooks/useOfficeDataEnhanced';
 
@@ -83,13 +85,34 @@ const OfficeLoadingTest: React.FC = () => {
 
   return (
     <Box p={4}>
-      <Typography variant="h4" gutterBottom>
-        Office Loading Test - Enhanced Pagination
-      </Typography>
-      
+      <Alert severity="info" sx={{ mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          🔧 Debug Mode: Offline Load Test Active
+        </Typography>
+        <Typography variant="body2">
+          This debug tool tests the enhanced office loading system and verifies database connectivity.
+          Use this to troubleshoot data loading issues and verify Supabase integration.
+        </Typography>
+      </Alert>
+
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h4">
+          📊 Office Loading Test - Enhanced Pagination
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={refetch}
+          disabled={loading}
+          sx={{ minWidth: '120px' }}
+        >
+          {loading ? 'Loading...' : '🔄 Refresh Data'}
+        </Button>
+      </Box>
+
       <Typography variant="body1" color="text.secondary" paragraph>
         This test verifies that the enhanced office loading system can fetch ALL records from the Supabase database,
-        overcoming the default 1000-record pagination limit.
+        overcoming the default 1000-record pagination limit. Perfect for debugging data loading issues.
       </Typography>
 
       {/* Summary Cards */}

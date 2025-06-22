@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { FormField } from '../types/PageBuilderTypes';
 
 interface FieldConfigItemProps {
@@ -7,6 +7,11 @@ interface FieldConfigItemProps {
   index: number;
   onUpdate: (index: number, field: FormField) => void;
   onRemove: (index: number) => void;
+  onMoveUp: (index: number) => void;
+  onMoveDown: (index: number) => void;
+  allFields: FormField[];
+  isFirst: boolean;
+  isLast: boolean;
 }
 
 const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
@@ -14,6 +19,11 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
   index,
   onUpdate,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  allFields,
+  isFirst,
+  isLast,
 }) => {
   const handleOptionChange = (optIndex: number, value: string, key: 'label' | 'value') => {
     const newOptions = [...(field.options || [])];
@@ -44,9 +54,27 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
     <div className="field-config-item card mb-3">
       <div className="card-header d-flex justify-content-between align-items-center">
         <strong>{field.label || 'Unnamed Field'}</strong> ({field.type})
-        <button onClick={() => onRemove(index)} className="btn btn-danger btn-sm">
-          {React.createElement(FaTrash as React.ComponentType<any>)} Remove
-        </button>
+        <div className="btn-group">
+          <button
+            onClick={() => onMoveUp(index)}
+            className="btn btn-outline-primary btn-sm"
+            disabled={isFirst}
+            title="Move Up"
+          >
+            {React.createElement(FaArrowUp as React.ComponentType<any>)}
+          </button>
+          <button
+            onClick={() => onMoveDown(index)}
+            className="btn btn-outline-primary btn-sm"
+            disabled={isLast}
+            title="Move Down"
+          >
+            {React.createElement(FaArrowDown as React.ComponentType<any>)}
+          </button>
+          <button onClick={() => onRemove(index)} className="btn btn-danger btn-sm">
+            {React.createElement(FaTrash as React.ComponentType<any>)} Remove
+          </button>
+        </div>
       </div>
       <div className="card-body">
         {/* Field Type Selector */}
@@ -73,6 +101,7 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
             <option value="checkbox-group">Checkbox Group</option>
             <option value="switch">Switch</option>
             <option value="file">File Upload</option>
+            <option value="calculated">🧮 Calculated Field</option>
             <option value="section">Section Header</option>
             <option value="button">Button</option>
           </select>
@@ -236,6 +265,128 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
               value={field.sectionTitle || ''}
               onChange={(e) => onUpdate(index, {...field, sectionTitle: e.target.value})}
             />
+          </div>
+        )}
+
+        {/* Calculated Field Configuration */}
+        {field.type === 'calculated' && (
+          <div className="calculated-field-config">
+            <div className="alert alert-info">
+              <strong>🧮 Calculated Field Configuration</strong><br />
+              This field will automatically calculate values based on other form fields.
+            </div>
+
+            {/* Calculation Type */}
+            <div className="form-group">
+              <label htmlFor={`field-calc-type-${index}`} className="form-label">Calculation Type: </label>
+              <select
+                id={`field-calc-type-${index}`}
+                className="form-control"
+                value={field.calculationType || 'sum'}
+                onChange={(e) => onUpdate(index, {...field, calculationType: e.target.value as any})}
+              >
+                <option value="sum">➕ Sum (Add all values)</option>
+                <option value="subtract">➖ Subtract (First - Others)</option>
+                <option value="multiply">✖️ Multiply (All values)</option>
+                <option value="divide">➗ Divide (First ÷ Others)</option>
+                <option value="average">📊 Average</option>
+                <option value="percentage">📈 Percentage (First/Second * 100)</option>
+                <option value="custom">⚙️ Custom Formula</option>
+              </select>
+            </div>
+
+            {/* Source Fields */}
+            <div className="form-group">
+              <label htmlFor={`field-source-fields-${index}`} className="form-label">Source Fields (comma-separated labels): </label>
+              <input
+                id={`field-source-fields-${index}`}
+                type="text"
+                className="form-control"
+                value={field.sourceFields?.join(',') || ''}
+                onChange={(e) => onUpdate(index, {...field, sourceFields: e.target.value.split(',').map(s => s.trim()).filter(s => s)})}
+                placeholder="Price,Quantity,Tax Rate"
+              />
+              <small className="form-text text-muted">
+                Enter the labels of fields to use in calculation (e.g., Price,Quantity,Tax Rate)
+              </small>
+              {allFields.length > 0 && (
+                <div className="mt-2">
+                  <small className="text-info">
+                    <strong>Available fields:</strong> {allFields.filter(f => f.type !== 'calculated' && f.type !== 'section' && f.type !== 'button' && f.label).map(f => f.label).join(', ')}
+                  </small>
+                </div>
+              )}
+            </div>
+
+            {/* Custom Formula (only for custom type) */}
+            {field.calculationType === 'custom' && (
+              <div className="form-group">
+                <label htmlFor={`field-custom-formula-${index}`} className="form-label">Custom Formula: </label>
+                <textarea
+                  id={`field-custom-formula-${index}`}
+                  className="form-control"
+                  rows={3}
+                  value={field.customFormula || ''}
+                  onChange={(e) => onUpdate(index, {...field, customFormula: e.target.value})}
+                  placeholder="e.g., ([Price] + [Tax Amount]) * 1.18"
+                />
+                <small className="form-text text-muted">
+                  Use field labels in square brackets. Example: ([Price] + [Tax Amount]) * 1.18 for GST calculation
+                </small>
+                <div className="mt-2">
+                  <small className="text-info">
+                    <strong>Example formulas:</strong><br />
+                    • Simple addition: [Price] + [Tax]<br />
+                    • Percentage: [Amount] * ([Tax Rate] / 100)<br />
+                    • Complex: ([Base Price] + [Shipping]) * (1 + [Tax Rate]/100)
+                  </small>
+                </div>
+              </div>
+            )}
+
+            {/* Display Options */}
+            <div className="row">
+              <div className="col-md-4">
+                <div className="form-group">
+                  <label htmlFor={`field-decimal-places-${index}`} className="form-label">Decimal Places: </label>
+                  <input
+                    id={`field-decimal-places-${index}`}
+                    type="number"
+                    className="form-control"
+                    min="0"
+                    max="10"
+                    value={field.decimalPlaces || 2}
+                    onChange={(e) => onUpdate(index, {...field, decimalPlaces: parseInt(e.target.value) || 2})}
+                  />
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="form-group">
+                  <label htmlFor={`field-prefix-${index}`} className="form-label">Prefix: </label>
+                  <input
+                    id={`field-prefix-${index}`}
+                    type="text"
+                    className="form-control"
+                    value={field.prefix || ''}
+                    onChange={(e) => onUpdate(index, {...field, prefix: e.target.value})}
+                    placeholder="₹, $, etc."
+                  />
+                </div>
+              </div>
+              <div className="col-md-4">
+                <div className="form-group">
+                  <label htmlFor={`field-suffix-${index}`} className="form-label">Suffix: </label>
+                  <input
+                    id={`field-suffix-${index}`}
+                    type="text"
+                    className="form-control"
+                    value={field.suffix || ''}
+                    onChange={(e) => onUpdate(index, {...field, suffix: e.target.value})}
+                    placeholder="%, kg, etc."
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
