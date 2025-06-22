@@ -2,15 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { REPORT_FREQUENCIES } from '../types/PageBuilderTypes';
 import { useOfficeDataSimple as useOfficeData } from '../hooks/useOfficeDataSimple';
 import CheckboxDropdown from './CheckboxDropdown';
+import { getUniqueOfficeTypes, filterOfficesByType } from '../utils/officeTypeUtils';
 
 interface ReportConfigurationProps {
   selectedRegions: string[];
   selectedDivisions: string[];
   selectedOffices: string[];
+  selectedOfficeTypes?: string[];
   selectedFrequency: string;
   onRegionsChange: (regions: string[]) => void;
   onDivisionsChange: (divisions: string[]) => void;
   onOfficesChange: (offices: string[]) => void;
+  onOfficeTypesChange?: (officeTypes: string[]) => void;
   onFrequencyChange: (frequency: string) => void;
 }
 
@@ -18,10 +21,12 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
   selectedRegions,
   selectedDivisions,
   selectedOffices,
+  selectedOfficeTypes = [],
   selectedFrequency,
   onRegionsChange,
   onDivisionsChange,
   onOfficesChange,
+  onOfficeTypesChange,
   onFrequencyChange,
 }) => {
   // Use custom hook to fetch office data from Supabase
@@ -29,6 +34,12 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
 
   // Flag to prevent clearing selections during restoration
   const [isRestoringSelections, setIsRestoringSelections] = useState(false);
+
+  // Get unique office types from available offices
+  const availableOfficeTypes = React.useMemo(() => {
+    const officeNames = offices.map(office => office.name);
+    return getUniqueOfficeTypes(officeNames);
+  }, [offices]);
 
   // Debug logging to track selection changes
   useEffect(() => {
@@ -119,7 +130,8 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
     divisions.find(d => d.id === divisionId)?.name
   ).filter(Boolean);
 
-  const availableOffices = selectedDivisions.length > 0
+  // First filter by region/division, then by office type
+  let filteredOffices = selectedDivisions.length > 0
     ? offices.filter(office =>
         selectedRegionNames.includes(office.region) &&
         selectedDivisionNames.includes(office.division)
@@ -127,6 +139,35 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
     : selectedRegions.length > 0
       ? offices.filter(office => selectedRegionNames.includes(office.region))
       : offices; // Show all offices if no filters applied
+
+  // Add division offices to the list if divisions are selected
+  // This ensures division offices like "Coimbatore division" appear in the office dropdown
+  if (selectedDivisions.length > 0) {
+    const divisionOffices = offices.filter(office => {
+      return selectedDivisionNames.some(divisionName => {
+        const officeLower = office.name.toLowerCase();
+        const divisionLower = divisionName.toLowerCase();
+
+        // Check if office name contains the division name and "division"
+        const containsDivisionName = officeLower.includes(divisionLower);
+        const containsDivisionWord = officeLower.includes('division');
+
+        return containsDivisionName && containsDivisionWord;
+      });
+    });
+
+    // Add division offices that aren't already in the filtered list
+    divisionOffices.forEach(divisionOffice => {
+      if (!filteredOffices.some(office => office.id === divisionOffice.id)) {
+        filteredOffices.push(divisionOffice);
+      }
+    });
+  }
+
+  // Apply office type filter if any office types are selected
+  const availableOffices = selectedOfficeTypes.length > 0
+    ? filterOfficesByType(filteredOffices, selectedOfficeTypes)
+    : filteredOffices;
 
   // Reset dependent selections when parent selections change (but not during restoration)
   useEffect(() => {
@@ -147,15 +188,26 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
   useEffect(() => {
     if (!isRestoringSelections && selectedDivisions.length > 0) {
       // Remove offices that don't belong to selected regions/divisions
+      // BUT allow division offices to remain selected
       const validOffices = selectedOffices.filter(officeId => {
         const office = offices.find(o => o.id === officeId);
-        return office &&
-               selectedRegionNames.includes(office.region) &&
-               selectedDivisionNames.includes(office.division);
+        if (!office) return false;
+
+        // Check if this is a division office
+        const isDivisionOffice = selectedDivisionNames.some(divisionName =>
+          office.name.toLowerCase().includes(divisionName.toLowerCase()) &&
+          office.name.toLowerCase().includes('division')
+        );
+
+        // Allow division offices OR offices that belong to selected regions/divisions
+        const belongsToSelection = selectedRegionNames.includes(office.region) &&
+                                 selectedDivisionNames.includes(office.division);
+
+        return isDivisionOffice || belongsToSelection;
       });
 
       if (validOffices.length !== selectedOffices.length) {
-        console.log('🔄 Clearing invalid offices due to division change');
+        console.log('🔄 Clearing invalid offices due to division change, keeping division offices');
         onOfficesChange(validOffices);
       }
     }
@@ -201,71 +253,96 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
       )}
 
       {!loading && !error && (
-        <div className="row">
-          <div className="col-md-3">
-            <CheckboxDropdown
-              id="region-select"
-              label="Select Regions"
-              options={regions}
-              selectedValues={selectedRegions}
-              onChange={onRegionsChange}
-              disabled={loading}
-              placeholder="-- Select Regions --"
-            />
-          </div>
-
-          <div className="col-md-3">
-            <CheckboxDropdown
-              id="division-select"
-              label="Select Divisions"
-              options={availableDivisions}
-              selectedValues={selectedDivisions}
-              onChange={onDivisionsChange}
-              disabled={selectedRegions.length === 0 || loading}
-              placeholder="-- Select Divisions --"
-            />
-          </div>
-
-          <div className="col-md-3">
-            <CheckboxDropdown
-              id="office-select"
-              label="Select Offices"
-              options={availableOffices}
-              selectedValues={selectedOffices}
-              onChange={onOfficesChange}
-              disabled={selectedDivisions.length === 0 || loading}
-              placeholder="-- Select Offices --"
-            />
-          </div>
-
-          <div className="col-md-3">
-            <div className="form-group">
-              <label htmlFor="frequency-select" className="form-label">
-                Report Frequency: <span className="text-danger">*</span>
-              </label>
-              <select
-                id="frequency-select"
-                className={`form-select ${!selectedFrequency ? 'is-invalid' : ''}`}
-                value={selectedFrequency}
-                onChange={(e) => onFrequencyChange(e.target.value)}
+        <>
+          <div className="row">
+            <div className="col-md-3">
+              <CheckboxDropdown
+                id="region-select"
+                label="Select Regions"
+                options={regions}
+                selectedValues={selectedRegions}
+                onChange={onRegionsChange}
                 disabled={loading}
-                required
-              >
-                <option value="">-- Select Frequency --</option>
-                {REPORT_FREQUENCIES.map(frequency => (
-                  <option key={frequency.value} value={frequency.value}>
-                    {frequency.label}
-                  </option>
-                ))}
-              </select>
-              {!selectedFrequency && (
-                <div className="invalid-feedback">
-                  Report frequency is required.
-                </div>
+                placeholder="-- Select Regions --"
+              />
+            </div>
+
+            <div className="col-md-3">
+              <CheckboxDropdown
+                id="division-select"
+                label="Select Divisions"
+                options={availableDivisions}
+                selectedValues={selectedDivisions}
+                onChange={onDivisionsChange}
+                disabled={selectedRegions.length === 0 || loading}
+                placeholder="-- Select Divisions --"
+              />
+            </div>
+
+            <div className="col-md-3">
+              {onOfficeTypesChange && (
+                <CheckboxDropdown
+                  id="office-type-select"
+                  label="Filter by Office Type"
+                  options={availableOfficeTypes}
+                  selectedValues={selectedOfficeTypes}
+                  onChange={onOfficeTypesChange}
+                  disabled={loading}
+                  placeholder="-- All Office Types --"
+                />
               )}
             </div>
           </div>
-        </div>
+
+          <div className="row mt-3">
+            <div className="col-md-9">
+              <CheckboxDropdown
+                id="office-select"
+                label="Select Offices"
+                options={availableOffices}
+                selectedValues={selectedOffices}
+                onChange={onOfficesChange}
+                disabled={selectedDivisions.length === 0 || loading}
+                placeholder="-- Select Offices --"
+              />
+              {selectedOfficeTypes.length > 0 && (
+                <small className="text-muted mt-1 d-block">
+                  Filtered by office types: {selectedOfficeTypes.map(typeId =>
+                    availableOfficeTypes.find(t => t.id === typeId)?.name
+                  ).filter(Boolean).join(', ')}
+                </small>
+              )}
+            </div>
+
+            <div className="col-md-3">
+              <div className="form-group">
+                <label htmlFor="frequency-select" className="form-label">
+                  Report Frequency: <span className="text-danger">*</span>
+                </label>
+                <select
+                  id="frequency-select"
+                  className={`form-select ${!selectedFrequency ? 'is-invalid' : ''}`}
+                  value={selectedFrequency}
+                  onChange={(e) => onFrequencyChange(e.target.value)}
+                  disabled={loading}
+                  required
+                >
+                  <option value="">-- Select Frequency --</option>
+                  {REPORT_FREQUENCIES.map(frequency => (
+                    <option key={frequency.value} value={frequency.value}>
+                      {frequency.label}
+                    </option>
+                  ))}
+                </select>
+                {!selectedFrequency && (
+                  <div className="invalid-feedback">
+                    Report frequency is required.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

@@ -279,7 +279,9 @@ class OfficeService {
   }
 
   /// Fetches office names for the current user using hierarchical filtering
-  /// Returns user's office + all offices that report TO the user's office
+  /// - Division users: See all offices under their division
+  /// - Region users: See all offices under their region
+  /// - Office users: See offices under their reporting office
   static Future<List<String>> fetchUserSpecificOfficeNames() async {
     try {
       // Get current user's office name
@@ -308,39 +310,8 @@ class OfficeService {
       print(
           'OfficeService: Building hierarchical office list for user: $userOfficeName');
 
-      // Query Supabase to find all offices that report TO the user's office
-      print(
-          'OfficeService: Querying offices that report to user office: $userOfficeName');
-
-      final reportingOfficesResponse = await _supabase
-          .from('offices')
-          .select('"Office name"')
-          .eq('"Reporting Office Nam"', userOfficeName)
-          .order('"Office name"', ascending: true);
-
-      print(
-          'OfficeService: Found ${reportingOfficesResponse.length} offices reporting to: $userOfficeName');
-
-      // Build list of offices to show
-      List<String> officeList = [];
-
-      // Add user's own office
-      officeList.add(userOfficeName);
-      print('OfficeService: Added user office: $userOfficeName');
-
-      // Add all offices that report to the user's office
-      for (var office in reportingOfficesResponse) {
-        String? officeName = office['Office name'] as String?;
-        if (officeName != null && officeName.trim().isNotEmpty) {
-          officeList.add(officeName.trim());
-          print('OfficeService: Added reporting office: $officeName');
-        }
-      }
-
-      if (reportingOfficesResponse.isEmpty) {
-        print(
-            'OfficeService: No offices report to user office, showing user office only');
-      }
+      // Determine user level and get appropriate office list
+      List<String> officeList = await _getOfficesByUserLevel(userOfficeName);
 
       // Remove duplicates and sort
       officeList = officeList.toSet().toList();
@@ -375,6 +346,183 @@ class OfficeService {
       // Ultimate fallback to empty list
       print('OfficeService: Returning empty list due to error');
       return [];
+    }
+  }
+
+  /// Determines user level and returns appropriate office list
+  static Future<List<String>> _getOfficesByUserLevel(
+      String userOfficeName) async {
+    try {
+      // Get user's office details from Supabase
+      final userOfficeDetails = await getOfficeDetails(userOfficeName);
+
+      if (userOfficeDetails == null) {
+        print(
+            'OfficeService: Could not find office details for: $userOfficeName');
+        return [userOfficeName];
+      }
+
+      final userRegion = userOfficeDetails['region'] as String?;
+      final userDivision = userOfficeDetails['division'] as String?;
+
+      print(
+          'OfficeService: User office details - Region: $userRegion, Division: $userDivision');
+
+      // Check if user is at division level
+      if (_isDivisionLevel(userOfficeName)) {
+        print(
+            'OfficeService: User is at division level, fetching all offices in division: $userOfficeName');
+        return await _getOfficesByDivision(userOfficeName);
+      }
+
+      // Check if user is at region level
+      if (_isRegionLevel(userOfficeName)) {
+        print(
+            'OfficeService: User is at region level, fetching all offices in region: $userRegion');
+        return await _getOfficesByRegion(userRegion);
+      }
+
+      // Default: office level - get offices under same reporting office
+      print(
+          'OfficeService: User is at office level, fetching hierarchical offices');
+      return await _getOfficesUnderReportingOffice(userOfficeName);
+    } catch (e) {
+      print('OfficeService: Error determining user level: $e');
+      return [userOfficeName];
+    }
+  }
+
+  /// Checks if user is at division level
+  static bool _isDivisionLevel(String officeName) {
+    return officeName.trim().toLowerCase().endsWith('division');
+  }
+
+  /// Checks if user is at region level (contains "region" but not "division")
+  static bool _isRegionLevel(String officeName) {
+    final lowerName = officeName.trim().toLowerCase();
+    return lowerName.contains('region') && !lowerName.endsWith('division');
+  }
+
+  /// Gets all offices under a specific division
+  /// For divisional offices like "Coimbatore division", finds all offices
+  /// by querying the Division column directly
+  static Future<List<String>> _getOfficesByDivision(String? division) async {
+    if (division == null || division.trim().isEmpty) {
+      return [];
+    }
+
+    try {
+      print('🔍 OfficeService: Starting division lookup for: $division');
+
+      // Extract the division area name (e.g., "Coimbatore" from "Coimbatore division")
+      String extractedDivision =
+          division.toLowerCase().replaceAll(' division', '').trim();
+      print('🔍 OfficeService: Extracted division area: $extractedDivision');
+
+      // Query all offices where Division column matches the extracted division name
+      print(
+          '🔍 OfficeService: Querying offices where "Division" = "$extractedDivision"');
+      final response = await _supabase
+          .from('offices')
+          .select('"Office name"')
+          .eq('"Division"', extractedDivision)
+          .order('"Office name"', ascending: true);
+
+      List<String> offices = [];
+      for (var office in response) {
+        String officeName = office['Office name'] as String;
+        offices.add(officeName);
+      }
+
+      print(
+          '🔍 OfficeService: Found ${offices.length} offices in Division "$extractedDivision"');
+      print('📋 OfficeService: Offices: $offices');
+
+      // Always include the division office itself if not already in the list
+      if (!offices.contains(division)) {
+        print('➕ OfficeService: Adding division office to list: $division');
+        offices.add(division);
+        offices.sort();
+      }
+
+      print(
+          '✅ OfficeService: Final result - ${offices.length} offices under division: $division');
+      return offices;
+    } catch (e) {
+      print('❌ OfficeService: Error fetching offices by division: $e');
+      return [division]; // Return at least the division office itself
+    }
+  }
+
+  /// Gets all offices under a specific region
+  static Future<List<String>> _getOfficesByRegion(String? region) async {
+    if (region == null || region.trim().isEmpty) {
+      return [];
+    }
+
+    try {
+      final response = await _supabase
+          .from('offices')
+          .select('"Office name"')
+          .eq('Region', region)
+          .order('"Office name"', ascending: true);
+
+      List<String> offices = [];
+      for (var office in response) {
+        offices.add(office['Office name'] as String);
+      }
+
+      print(
+          'OfficeService: Found ${offices.length} offices in region: $region');
+      return offices;
+    } catch (e) {
+      print('OfficeService: Error fetching offices by region: $e');
+      return [];
+    }
+  }
+
+  /// Gets offices under the same reporting office (original logic)
+  static Future<List<String>> _getOfficesUnderReportingOffice(
+      String userOfficeName) async {
+    try {
+      // Query Supabase to find all offices that report TO the user's office
+      print(
+          'OfficeService: Querying offices that report to user office: $userOfficeName');
+
+      final reportingOfficesResponse = await _supabase
+          .from('offices')
+          .select('"Office name"')
+          .eq('"Reporting Office Nam"', userOfficeName)
+          .order('"Office name"', ascending: true);
+
+      print(
+          'OfficeService: Found ${reportingOfficesResponse.length} offices reporting to: $userOfficeName');
+
+      // Build list of offices to show
+      List<String> officeList = [];
+
+      // Add user's own office
+      officeList.add(userOfficeName);
+      print('OfficeService: Added user office: $userOfficeName');
+
+      // Add all offices that report to the user's office
+      for (var office in reportingOfficesResponse) {
+        String? officeName = office['Office name'] as String?;
+        if (officeName != null && officeName.trim().isNotEmpty) {
+          officeList.add(officeName.trim());
+          print('OfficeService: Added reporting office: $officeName');
+        }
+      }
+
+      if (reportingOfficesResponse.isEmpty) {
+        print(
+            'OfficeService: No offices report to user office, showing user office only');
+      }
+
+      return officeList;
+    } catch (e) {
+      print('OfficeService: Error fetching offices under reporting office: $e');
+      return [userOfficeName];
     }
   }
 

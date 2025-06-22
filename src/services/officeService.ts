@@ -144,8 +144,283 @@ class OfficeService {
         }
       }
 
-      console.log('OfficeService: Building hierarchical office list for user:', userOfficeName);
+      console.log('🔍 OfficeService: Building hierarchical office list for user:', userOfficeName);
 
+      // Determine user level and get appropriate office list
+      console.log('🔍 OfficeService: Calling getOfficesByUserLevel...');
+      const officeList = await this.getOfficesByUserLevel(userOfficeName);
+      console.log('🔍 OfficeService: getOfficesByUserLevel returned:', officeList.length, 'offices');
+      console.log('📋 OfficeService: Raw office list:', officeList);
+
+      // Remove duplicates and sort
+      const uniqueOfficeList = Array.from(new Set(officeList)).sort();
+      console.log('🔍 OfficeService: After deduplication and sorting:', uniqueOfficeList.length, 'offices');
+      console.log('📋 OfficeService: Final unique office list:', uniqueOfficeList);
+
+      // Cache the user-specific result
+      this.userSpecificCache.set(cacheKey, uniqueOfficeList);
+      this.userCacheTimestamps.set(cacheKey, new Date());
+
+      console.log('✅ OfficeService: Successfully returned', uniqueOfficeList.length, 'hierarchical office names');
+      return uniqueOfficeList;
+
+    } catch (error) {
+      console.error('OfficeService: Error fetching hierarchical office names:', error);
+
+      // Fallback to cached user-specific data if available
+      const userOfficeData = await this.getCurrentUserOfficeData();
+      const userOfficeName = userOfficeData.officeName;
+      if (userOfficeName && this.userSpecificCache.has(userOfficeName)) {
+        console.log('OfficeService: Returning expired cached office names due to error');
+        return this.userSpecificCache.get(userOfficeName)!;
+      }
+
+      // Final fallback to user office only if we can get it
+      if (userOfficeName && userOfficeName.trim()) {
+        console.log('OfficeService: Returning user office as final fallback');
+        return [userOfficeName];
+      }
+
+      // Ultimate fallback to empty array
+      console.log('OfficeService: Returning empty array due to error');
+      return [];
+    }
+  }
+
+  /**
+   * Determines user level and returns appropriate office list
+   */
+  private static async getOfficesByUserLevel(userOfficeName: string): Promise<string[]> {
+    try {
+      // Get user's office details from Supabase
+      const userOfficeDetails = await this.getOfficeDetails(userOfficeName);
+
+      if (!userOfficeDetails) {
+        console.log('OfficeService: Could not find office details for:', userOfficeName);
+        return [userOfficeName];
+      }
+
+      const userRegion = userOfficeDetails.region;
+      const userDivision = userOfficeDetails.division;
+
+      console.log('OfficeService: User office details - Region:', userRegion, 'Division:', userDivision);
+
+      // Check if user is at division level
+      if (this.isDivisionLevel(userOfficeName)) {
+        console.log('OfficeService: User is at division level, fetching all offices in division:', userOfficeName);
+        return await this.getOfficesByDivision(userOfficeName);
+      }
+
+      // Check if user is at region level
+      if (this.isRegionLevel(userOfficeName)) {
+        console.log('OfficeService: User is at region level, fetching all offices in region:', userRegion);
+        return await this.getOfficesByRegion(userRegion);
+      }
+
+      // Default: office level - get offices under same reporting office
+      console.log('OfficeService: User is at office level, fetching hierarchical offices');
+      return await this.getOfficesUnderReportingOffice(userOfficeName);
+
+    } catch (error) {
+      console.error('OfficeService: Error determining user level:', error);
+      return [userOfficeName];
+    }
+  }
+
+  /**
+   * Checks if user is at division level
+   */
+  private static isDivisionLevel(officeName: string): boolean {
+    return officeName.trim().toLowerCase().endsWith('division');
+  }
+
+  /**
+   * Checks if user is at region level (contains "region" but not "division")
+   */
+  private static isRegionLevel(officeName: string): boolean {
+    const lowerName = officeName.trim().toLowerCase();
+    return lowerName.includes('region') && !lowerName.endsWith('division');
+  }
+
+  /**
+   * Gets all offices under a specific division
+   * For divisional offices like "Coimbatore division", finds all offices
+   * by querying the Division column directly
+   */
+  private static async getOfficesByDivision(division: string | undefined): Promise<string[]> {
+    if (!division || division.trim() === '') {
+      return [];
+    }
+
+    try {
+      console.log('🔍 OfficeService: Starting division lookup for:', division);
+
+      // Extract the division area name (e.g., "Coimbatore" from "Coimbatore division")
+      const extractedDivision = division.toLowerCase().replace(' division', '').trim();
+      console.log('🔍 OfficeService: Extracted division area:', extractedDivision);
+
+      // First, let's see what Division values actually exist in the database
+      console.log('🔍 OfficeService: Checking what Division values exist in database...');
+      const { data: sampleData, error: sampleError } = await supabase
+        .from('offices')
+        .select('"Office name", "Division"')
+        .limit(20);
+
+      if (sampleError) throw sampleError;
+
+      console.log('🔍 OfficeService: Sample Division values in database:');
+      if (sampleData) {
+        const divisionValues = sampleData.map(office => (office as any)['Division']);
+        const uniqueDivisions = Array.from(new Set(divisionValues));
+        console.log('📋 OfficeService: Unique Division values:', uniqueDivisions);
+
+        // Check if any division contains our extracted division name
+        const matchingDivisions = uniqueDivisions.filter(div =>
+          div && div.toString().toLowerCase().includes(extractedDivision.toLowerCase())
+        );
+        console.log('📋 OfficeService: Divisions containing "' + extractedDivision + '":', matchingDivisions);
+      }
+
+      // Query all offices where Division column matches the extracted division name
+      console.log('🔍 OfficeService: Querying offices where "Division" =', `"${extractedDivision}"`);
+      const { data, error } = await supabase
+        .from('offices')
+        .select('"Office name"')
+        .eq('"Division"', extractedDivision)
+        .order('"Office name"', { ascending: true });
+
+      if (error) throw error;
+
+      const offices: string[] = [];
+      if (data) {
+        for (const office of data) {
+          const officeName = (office as any)['Office name'] as string;
+          offices.push(officeName);
+        }
+      }
+
+      console.log('🔍 OfficeService: Found', offices.length, 'offices in Division', `"${extractedDivision}"`);
+      console.log('📋 OfficeService: Offices:', offices);
+
+      // If no exact match found, try case-insensitive search
+      if (offices.length === 0) {
+        console.log('🔍 OfficeService: No exact match found, trying case-insensitive search...');
+        const { data: iLikeData, error: iLikeError } = await supabase
+          .from('offices')
+          .select('"Office name"')
+          .ilike('"Division"', `%${extractedDivision}%`)
+          .order('"Office name"', { ascending: true });
+
+        if (iLikeError) throw iLikeError;
+
+        if (iLikeData) {
+          for (const office of iLikeData) {
+            const officeName = (office as any)['Office name'] as string;
+            offices.push(officeName);
+          }
+        }
+        console.log('🔍 OfficeService: Case-insensitive search found', offices.length, 'offices');
+        console.log('📋 OfficeService: Case-insensitive offices:', offices);
+      }
+
+      // Always include the division office itself if not already in the list
+      if (!offices.includes(division)) {
+        console.log('➕ OfficeService: Adding division office to list:', division);
+        offices.push(division);
+        offices.sort();
+      }
+
+      console.log('✅ OfficeService: Final result -', offices.length, 'offices under division:', division);
+      return offices;
+    } catch (error) {
+      console.error('❌ OfficeService: Error fetching offices by division:', error);
+      return [division]; // Return at least the division office itself
+    }
+  }
+
+  /**
+   * Gets all offices under a specific region
+   * For regional offices like "Tamil Nadu Region", finds all offices
+   * where Region column matches the region name
+   */
+  private static async getOfficesByRegion(region: string | undefined): Promise<string[]> {
+    if (!region || region.trim() === '') {
+      return [];
+    }
+
+    try {
+      console.log('🔍 OfficeService: Starting region lookup for:', region);
+
+      // First, let's see what Region values actually exist in the database
+      console.log('🔍 OfficeService: Checking what Region values exist in database...');
+      const { data: sampleData, error: sampleError } = await supabase
+        .from('offices')
+        .select('"Office name", "Region"')
+        .limit(20);
+
+      if (sampleError) throw sampleError;
+
+      console.log('🔍 OfficeService: Sample Region values in database:');
+      if (sampleData) {
+        const regionValues = sampleData.map(office => (office as any)['Region']);
+        const uniqueRegions = Array.from(new Set(regionValues));
+        console.log('📋 OfficeService: Unique Region values:', uniqueRegions);
+      }
+
+      // Query all offices where Region column matches the region name
+      console.log('🔍 OfficeService: Querying offices where "Region" =', `"${region}"`);
+      const { data, error } = await supabase
+        .from('offices')
+        .select('"Office name"')
+        .eq('"Region"', region)
+        .order('"Office name"', { ascending: true });
+
+      if (error) throw error;
+
+      const offices: string[] = [];
+      if (data) {
+        for (const office of data) {
+          offices.push((office as any)['Office name'] as string);
+        }
+      }
+
+      console.log('🔍 OfficeService: Found', offices.length, 'offices in Region', `"${region}"`);
+      console.log('📋 OfficeService: Offices:', offices);
+
+      // If no exact match found, try case-insensitive search
+      if (offices.length === 0) {
+        console.log('🔍 OfficeService: No exact match found, trying case-insensitive search...');
+        const { data: iLikeData, error: iLikeError } = await supabase
+          .from('offices')
+          .select('"Office name"')
+          .ilike('"Region"', `%${region}%`)
+          .order('"Office name"', { ascending: true });
+
+        if (iLikeError) throw iLikeError;
+
+        if (iLikeData) {
+          for (const office of iLikeData) {
+            const officeName = (office as any)['Office name'] as string;
+            offices.push(officeName);
+          }
+        }
+        console.log('🔍 OfficeService: Case-insensitive search found', offices.length, 'offices');
+        console.log('📋 OfficeService: Case-insensitive offices:', offices);
+      }
+
+      console.log('✅ OfficeService: Final result -', offices.length, 'offices under region:', region);
+      return offices;
+    } catch (error) {
+      console.error('❌ OfficeService: Error fetching offices by region:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Gets offices under the same reporting office (original logic)
+   */
+  private static async getOfficesUnderReportingOffice(userOfficeName: string): Promise<string[]> {
+    try {
       // Query Supabase to find all offices that report TO the user's office
       console.log('OfficeService: Querying offices that report to user office:', userOfficeName);
 
@@ -184,36 +459,53 @@ class OfficeService {
         console.log('OfficeService: No offices report to user office, showing user office only');
       }
 
-      // Remove duplicates and sort
-      const uniqueOfficeList = Array.from(new Set(officeList)).sort();
-
-      // Cache the user-specific result
-      this.userSpecificCache.set(cacheKey, uniqueOfficeList);
-      this.userCacheTimestamps.set(cacheKey, new Date());
-
-      console.log('OfficeService: Successfully returned', uniqueOfficeList.length, 'hierarchical office names:', uniqueOfficeList);
-      return uniqueOfficeList;
-
+      return officeList;
     } catch (error) {
-      console.error('OfficeService: Error fetching hierarchical office names:', error);
+      console.error('OfficeService: Error fetching offices under reporting office:', error);
+      return [userOfficeName];
+    }
+  }
 
-      // Fallback to cached user-specific data if available
-      const userOfficeData = await this.getCurrentUserOfficeData();
-      const userOfficeName = userOfficeData.officeName;
-      if (userOfficeName && this.userSpecificCache.has(userOfficeName)) {
-        console.log('OfficeService: Returning expired cached office names due to error');
-        return this.userSpecificCache.get(userOfficeName)!;
+  /**
+   * Gets detailed office information from Supabase offices table
+   */
+  private static async getOfficeDetails(officeName: string): Promise<{
+    officeName: string;
+    region?: string;
+    division?: string;
+    reportingOfficeName?: string;
+    facilityId?: string;
+  } | null> {
+    try {
+      console.log('🏢 OfficeService: Fetching details for office:', officeName);
+
+      // Query the offices table for the specific office
+      const { data, error } = await supabase
+        .from('offices')
+        .select('*')
+        .eq('"Office name"', officeName)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        console.log('✅ OfficeService: Found office details:', data);
+
+        // Return structured office details
+        return {
+          officeName: (data as any)['Office name'] || officeName,
+          region: (data as any)['Region'] || undefined,
+          division: (data as any)['Division'] || undefined,
+          reportingOfficeName: (data as any)['Reporting Office Nam'] || undefined,
+          facilityId: (data as any)['Facility ID'] || undefined,
+        };
+      } else {
+        console.log('⚠️ OfficeService: No office details found for:', officeName);
+        return null;
       }
-
-      // Final fallback to user office only if we can get it
-      if (userOfficeName && userOfficeName.trim()) {
-        console.log('OfficeService: Returning user office as final fallback');
-        return [userOfficeName];
-      }
-
-      // Ultimate fallback to empty array
-      console.log('OfficeService: Returning empty array due to error');
-      return [];
+    } catch (error) {
+      console.error('❌ OfficeService: Error fetching office details for', officeName, ':', error);
+      return null;
     }
   }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../../../config/supabaseClient';
 import { Region, Division, Office } from '../types/PageBuilderTypes';
+import { extractOfficeType } from '../utils/officeTypeUtils';
 import OfficeService from '../../../../services/officeService';
 
 interface UseOfficeDataReturn {
@@ -72,6 +73,7 @@ export const useOfficeDataSimple = (): UseOfficeDataReturn => {
           region: row.Region || '',
           division: row.Division || '',
           facilityId: row['Office name'], // Use office name as facility ID for consistency
+          officeType: extractOfficeType(row['Office name']), // Extract office type
         })) || [];
 
       // Data processing completed successfully

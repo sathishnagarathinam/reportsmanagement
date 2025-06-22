@@ -56,32 +56,49 @@ export class ReportsRoutingService {
 
       console.log('📋 ReportsRoutingService: User office:', `"${officeName}"`);
 
-      // Check if office name ends with 'Division' (case-insensitive)
+      // Check if office name ends with 'Division' or contains 'Region' (case-insensitive)
       const trimmed = officeName.trim();
       const lowercase = trimmed.toLowerCase();
       const isDivisionUser = lowercase.endsWith('division');
+      const isRegionUser = lowercase.includes('region') && !lowercase.endsWith('division');
+      const isComprehensiveUser = isDivisionUser || isRegionUser;
 
       console.log('📋 ReportsRoutingService: Office name:', `"${officeName}"`);
       console.log('📋 ReportsRoutingService: Trimmed:', `"${trimmed}"`);
       console.log('📋 ReportsRoutingService: Lowercase:', `"${lowercase}"`);
       console.log('📋 ReportsRoutingService: Ends with "division":', isDivisionUser);
-      console.log('📋 ReportsRoutingService: Office type:', isDivisionUser ? 'DIVISION (Comprehensive Reports)' : 'OFFICE (Simple Reports)');
+      console.log('📋 ReportsRoutingService: Contains "region":', isRegionUser);
+      console.log('📋 ReportsRoutingService: Comprehensive user (division OR region):', isComprehensiveUser);
+
+      let officeType: string;
+      if (isDivisionUser) {
+        officeType = 'DIVISION (Comprehensive Reports)';
+      } else if (isRegionUser) {
+        officeType = 'REGION (Comprehensive Reports)';
+      } else {
+        officeType = 'OFFICE (Simple Reports)';
+      }
+      console.log('📋 ReportsRoutingService: Office type:', officeType);
 
       // Cache the results
       this.cachedUserOffice = officeName;
-      this.cachedIsDivisionUser = isDivisionUser;
+      this.cachedIsDivisionUser = isComprehensiveUser; // Cache comprehensive user flag
       this.cacheTimestamp = new Date();
 
       console.log('📋 ReportsRoutingService: Cached results - Office:', this.cachedUserOffice);
-      console.log('📋 ReportsRoutingService: Cached results - isDivision:', this.cachedIsDivisionUser);
+      console.log('📋 ReportsRoutingService: Cached results - isComprehensive:', this.cachedIsDivisionUser);
 
-      if (isDivisionUser) {
-        console.log('✅ ReportsRoutingService: User is Division-level → Report Screen 1 (Comprehensive)');
+      if (isComprehensiveUser) {
+        if (isDivisionUser) {
+          console.log('✅ ReportsRoutingService: User is Division-level → Report Screen 1 (Comprehensive)');
+        } else if (isRegionUser) {
+          console.log('✅ ReportsRoutingService: User is Region-level → Report Screen 1 (Comprehensive)');
+        }
       } else {
         console.log('✅ ReportsRoutingService: User is Office-level → Report Screen 2 (Table View Only)');
       }
 
-      return isDivisionUser;
+      return isComprehensiveUser;
 
     } catch (error) {
       console.error('❌ ReportsRoutingService: Error determining report type:', error);
@@ -173,13 +190,23 @@ export class ReportsRoutingService {
       const officeName = await this.getCurrentUserOfficeName();
       console.log('🔍 getUserOfficeInfo: Got office name:', officeName);
 
-      // Use direct division logic test instead of cached shouldShowComprehensiveReports
+      // Use direct division/region logic test instead of cached shouldShowComprehensiveReports
       let isDivisionUser = false;
+      let isRegionUser = false;
+      let isComprehensiveUser = false;
+
       if (officeName && officeName.trim() !== '') {
-        isDivisionUser = officeName.trim().toLowerCase().endsWith('division');
+        const trimmedLower = officeName.trim().toLowerCase();
+        isDivisionUser = trimmedLower.endsWith('division');
+        isRegionUser = trimmedLower.includes('region') && !trimmedLower.endsWith('division');
+        isComprehensiveUser = isDivisionUser || isRegionUser;
+
         console.log('🔍 getUserOfficeInfo: Direct division check:', isDivisionUser);
-        console.log('🔍 getUserOfficeInfo: Office trimmed lowercase:', `"${officeName.trim().toLowerCase()}"`);
+        console.log('🔍 getUserOfficeInfo: Direct region check:', isRegionUser);
+        console.log('🔍 getUserOfficeInfo: Comprehensive user (division OR region):', isComprehensiveUser);
+        console.log('🔍 getUserOfficeInfo: Office trimmed lowercase:', `"${trimmedLower}"`);
         console.log('🔍 getUserOfficeInfo: Ends with "division":', isDivisionUser);
+        console.log('🔍 getUserOfficeInfo: Contains "region":', isRegionUser);
       }
 
       if (!officeName) {
@@ -196,8 +223,14 @@ export class ReportsRoutingService {
       let reportType: string;
       let description: string;
 
-      if (isDivisionUser) {
-        accessLevel = 'division';
+      if (isComprehensiveUser) {
+        if (isDivisionUser) {
+          accessLevel = 'division';
+        } else if (isRegionUser) {
+          accessLevel = 'region';
+        } else {
+          accessLevel = 'comprehensive';
+        }
         reportType = 'comprehensive';
         description = 'Report Screen 1: Summary + Submissions + Table View tabs with multi-level office hierarchy data';
       } else {
@@ -208,14 +241,14 @@ export class ReportsRoutingService {
 
       console.log('🔍 getUserOfficeInfo: Final result:', {
         officeName,
-        isDivisionUser,
+        isDivisionUser: isComprehensiveUser,
         accessLevel,
         reportType
       });
 
       return {
         officeName,
-        isDivisionUser,
+        isDivisionUser: isComprehensiveUser, // Changed to use comprehensive user flag
         accessLevel,
         reportType,
         description,

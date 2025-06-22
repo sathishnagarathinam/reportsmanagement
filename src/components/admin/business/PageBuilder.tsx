@@ -219,6 +219,10 @@ const PageBuilder: React.FC = () => {
     state.setSelectedOffices(offices);
   };
 
+  const handleOfficeTypesChange = (officeTypes: string[]) => {
+    state.setSelectedOfficeTypes(officeTypes);
+  };
+
   const handleFrequencyChange = (frequency: string) => {
     state.setSelectedFrequency(frequency);
   };
@@ -324,10 +328,12 @@ const PageBuilder: React.FC = () => {
                 selectedRegions={state.selectedRegions}
                 selectedDivisions={state.selectedDivisions}
                 selectedOffices={state.selectedOffices}
+                selectedOfficeTypes={state.selectedOfficeTypes}
                 selectedFrequency={state.selectedFrequency}
                 onRegionsChange={handleRegionsChange}
                 onDivisionsChange={handleDivisionsChange}
                 onOfficesChange={handleOfficesChange}
+                onOfficeTypesChange={handleOfficeTypesChange}
                 onFrequencyChange={handleFrequencyChange}
               />
             )}

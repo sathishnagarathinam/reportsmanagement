@@ -105,6 +105,7 @@ export interface ReportFrequency {
 }
 
 export const REPORT_FREQUENCIES: ReportFrequency[] = [
+  { value: 'onetime', label: 'One Time' },
   { value: 'daily', label: 'Daily' },
   { value: 'weekly', label: 'Weekly' },
   { value: 'monthly', label: 'Monthly' }
@@ -128,7 +129,27 @@ export interface Office {
   region: string; // matches the Region column in Supabase
   division: string; // matches the Division column in Supabase
   facilityId?: string; // Keep facility ID for reference/mapping
+  officeType?: string; // Extracted office type (SO, RO, BO, HO, etc.)
 }
+
+// Office type interface for filtering
+export interface OfficeType {
+  id: string;
+  name: string;
+  abbreviation: string;
+}
+
+// Common office types based on naming patterns
+export const OFFICE_TYPES: OfficeType[] = [
+  { id: 'so', name: 'Sub Office', abbreviation: 'SO' },
+  { id: 'ro', name: 'Regional Office', abbreviation: 'RO' },
+  { id: 'bo', name: 'Branch Office', abbreviation: 'BO' },
+  { id: 'ho', name: 'Head Office', abbreviation: 'HO' },
+  { id: 'do', name: 'Divisional Office', abbreviation: 'DO' },
+  { id: 'co', name: 'Circle Office', abbreviation: 'CO' },
+  { id: 'division', name: 'Division', abbreviation: 'Division' },
+  { id: 'other', name: 'Other', abbreviation: 'Other' }
+];
 
 // Supabase office record interface (matches actual table structure)
 export interface SupabaseOfficeRecord {
