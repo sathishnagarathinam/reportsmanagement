@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaTrash } from 'react-icons/fa';
+import { FaTrash, FaArrowUp, FaArrowDown } from 'react-icons/fa';
 import { FormField } from '../types/PageBuilderTypes';
 
 interface FieldConfigItemProps {
@@ -7,6 +7,11 @@ interface FieldConfigItemProps {
   index: number;
   onUpdate: (index: number, field: FormField) => void;
   onRemove: (index: number) => void;
+  onMoveUp: (index: number) => void;
+  onMoveDown: (index: number) => void;
+  allFields: FormField[];
+  isFirst: boolean;
+  isLast: boolean;
 }
 
 const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
@@ -14,6 +19,11 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
   index,
   onUpdate,
   onRemove,
+  onMoveUp,
+  onMoveDown,
+  allFields,
+  isFirst,
+  isLast,
 }) => {
   const handleOptionChange = (optIndex: number, value: string, key: 'label' | 'value') => {
     const newOptions = [...(field.options || [])];
@@ -44,9 +54,27 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
     <div className="field-config-item card mb-3">
       <div className="card-header d-flex justify-content-between align-items-center">
         <strong>{field.label || 'Unnamed Field'}</strong> ({field.type})
-        <button onClick={() => onRemove(index)} className="btn btn-danger btn-sm">
-          {React.createElement(FaTrash as React.ComponentType<any>)} Remove
-        </button>
+        <div className="btn-group">
+          <button
+            onClick={() => onMoveUp(index)}
+            className="btn btn-outline-primary btn-sm"
+            disabled={isFirst}
+            title="Move Up"
+          >
+            {React.createElement(FaArrowUp as React.ComponentType<any>)}
+          </button>
+          <button
+            onClick={() => onMoveDown(index)}
+            className="btn btn-outline-primary btn-sm"
+            disabled={isLast}
+            title="Move Down"
+          >
+            {React.createElement(FaArrowDown as React.ComponentType<any>)}
+          </button>
+          <button onClick={() => onRemove(index)} className="btn btn-danger btn-sm">
+            {React.createElement(FaTrash as React.ComponentType<any>)} Remove
+          </button>
+        </div>
       </div>
       <div className="card-body">
         {/* Field Type Selector */}
@@ -269,18 +297,25 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
 
             {/* Source Fields */}
             <div className="form-group">
-              <label htmlFor={`field-source-fields-${index}`} className="form-label">Source Fields (comma-separated IDs): </label>
+              <label htmlFor={`field-source-fields-${index}`} className="form-label">Source Fields (comma-separated labels): </label>
               <input
                 id={`field-source-fields-${index}`}
                 type="text"
                 className="form-control"
                 value={field.sourceFields?.join(',') || ''}
                 onChange={(e) => onUpdate(index, {...field, sourceFields: e.target.value.split(',').map(s => s.trim()).filter(s => s)})}
-                placeholder="field_1,field_2,field_3"
+                placeholder="Price,Quantity,Tax Rate"
               />
               <small className="form-text text-muted">
-                Enter the IDs of fields to use in calculation (e.g., field_1,field_2)
+                Enter the labels of fields to use in calculation (e.g., Price,Quantity,Tax Rate)
               </small>
+              {allFields.length > 0 && (
+                <div className="mt-2">
+                  <small className="text-info">
+                    <strong>Available fields:</strong> {allFields.filter(f => f.type !== 'calculated' && f.type !== 'section' && f.type !== 'button' && f.label).map(f => f.label).join(', ')}
+                  </small>
+                </div>
+              )}
             </div>
 
             {/* Custom Formula (only for custom type) */}
@@ -293,11 +328,19 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
                   rows={3}
                   value={field.customFormula || ''}
                   onChange={(e) => onUpdate(index, {...field, customFormula: e.target.value})}
-                  placeholder="e.g., (field_1 + field_2) * 0.1"
+                  placeholder="e.g., ([Price] + [Tax Amount]) * 1.18"
                 />
                 <small className="form-text text-muted">
-                  Use field IDs as variables. Example: (field_1 + field_2) * 1.18 for tax calculation
+                  Use field labels in square brackets. Example: ([Price] + [Tax Amount]) * 1.18 for GST calculation
                 </small>
+                <div className="mt-2">
+                  <small className="text-info">
+                    <strong>Example formulas:</strong><br />
+                    • Simple addition: [Price] + [Tax]<br />
+                    • Percentage: [Amount] * ([Tax Rate] / 100)<br />
+                    • Complex: ([Base Price] + [Shipping]) * (1 + [Tax Rate]/100)
+                  </small>
+                </div>
               </div>
             )}
 

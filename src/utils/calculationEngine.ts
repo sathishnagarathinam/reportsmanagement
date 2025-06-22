@@ -6,7 +6,7 @@
 export interface CalculationField {
   id: string;
   calculationType: 'sum' | 'subtract' | 'multiply' | 'divide' | 'average' | 'percentage' | 'custom';
-  sourceFields: string[];
+  sourceFields: string[]; // Now contains field labels instead of IDs
   customFormula?: string;
   decimalPlaces?: number;
   prefix?: string;
@@ -19,10 +19,11 @@ export class CalculationEngine {
    */
   static calculateValue(
     field: CalculationField,
-    formData: Record<string, any>
+    formData: Record<string, any>,
+    allFields: any[] = []
   ): string {
     try {
-      const sourceValues = this.getSourceValues(field.sourceFields, formData);
+      const sourceValues = this.getSourceValues(field.sourceFields, formData, allFields);
       let result: number;
 
       switch (field.calculationType) {
@@ -45,7 +46,7 @@ export class CalculationEngine {
           result = this.percentage(sourceValues);
           break;
         case 'custom':
-          result = this.customCalculation(field.customFormula || '', formData);
+          result = this.customCalculation(field.customFormula || '', formData, allFields);
           break;
         default:
           result = 0;
@@ -65,11 +66,15 @@ export class CalculationEngine {
   }
 
   /**
-   * Get numeric values from source fields
+   * Get numeric values from source fields using field labels
    */
-  private static getSourceValues(sourceFields: string[], formData: Record<string, any>): number[] {
+  private static getSourceValues(sourceFields: string[], formData: Record<string, any>, allFields: any[] = []): number[] {
     return sourceFields
-      .map(fieldId => {
+      .map(fieldLabel => {
+        // Find field ID by label
+        const field = allFields.find(f => f.label === fieldLabel);
+        const fieldId = field ? field.id : fieldLabel; // Fallback to label if field not found
+
         const value = formData[fieldId];
         const numValue = parseFloat(value);
         return isNaN(numValue) ? 0 : numValue;
@@ -136,20 +141,24 @@ export class CalculationEngine {
   }
 
   /**
-   * Custom formula calculation
+   * Custom formula calculation using field labels
    */
-  private static customCalculation(formula: string, formData: Record<string, any>): number {
+  private static customCalculation(formula: string, formData: Record<string, any>, allFields: any[] = []): number {
     try {
-      // Replace field IDs with their values in the formula
+      // Replace field labels with their values in the formula
       let processedFormula = formula;
-      
-      // Find all field references in the formula (field_xxx pattern)
-      const fieldMatches = formula.match(/field_\w+/g) || [];
-      
-      for (const fieldId of fieldMatches) {
+
+      // Find all field references in the formula (enclosed in square brackets [Field Label])
+      const fieldMatches = formula.match(/\[([^\]]+)\]/g) || [];
+
+      for (const match of fieldMatches) {
+        const fieldLabel = match.slice(1, -1); // Remove brackets
+        const field = allFields.find(f => f.label === fieldLabel);
+        const fieldId = field ? field.id : fieldLabel;
+
         const value = formData[fieldId];
         const numValue = parseFloat(value) || 0;
-        processedFormula = processedFormula.replace(new RegExp(fieldId, 'g'), numValue.toString());
+        processedFormula = processedFormula.replace(match, numValue.toString());
       }
 
       // Evaluate the formula safely (basic math operations only)
@@ -223,7 +232,7 @@ export class CalculationEngine {
     const updatedFormData = { ...formData };
 
     for (const calcField of calculatedFields) {
-      updatedFormData[calcField.id] = this.calculateValue(calcField, formData);
+      updatedFormData[calcField.id] = this.calculateValue(calcField, formData, fields);
     }
 
     return updatedFormData;

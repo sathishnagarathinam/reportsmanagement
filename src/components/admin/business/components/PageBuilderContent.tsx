@@ -9,6 +9,8 @@ interface PageBuilderContentProps {
   onAddField: () => void;
   onUpdateField: (index: number, field: FormField) => void;
   onRemoveField: (index: number) => void;
+  onMoveFieldUp: (index: number) => void;
+  onMoveFieldDown: (index: number) => void;
   onSave: () => void;
   onPreview: () => void;
   loading: boolean;
@@ -20,6 +22,8 @@ const PageBuilderContent: React.FC<PageBuilderContentProps> = ({
   onAddField,
   onUpdateField,
   onRemoveField,
+  onMoveFieldUp,
+  onMoveFieldDown,
   onSave,
   onPreview,
   loading,
@@ -36,6 +40,11 @@ const PageBuilderContent: React.FC<PageBuilderContentProps> = ({
           index={index}
           onUpdate={onUpdateField}
           onRemove={onRemoveField}
+          onMoveUp={onMoveFieldUp}
+          onMoveDown={onMoveFieldDown}
+          allFields={fields}
+          isFirst={index === 0}
+          isLast={index === fields.length - 1}
         />
       ))}
       

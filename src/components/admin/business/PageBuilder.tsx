@@ -317,6 +317,8 @@ const PageBuilder: React.FC = () => {
                 onAddField={pageConfiguration.addField}
                 onUpdateField={pageConfiguration.updateField}
                 onRemoveField={pageConfiguration.removeField}
+                onMoveFieldUp={pageConfiguration.moveFieldUp}
+                onMoveFieldDown={pageConfiguration.moveFieldDown}
                 onSave={pageConfiguration.handleSave}
                 onPreview={pageConfiguration.handlePreview}
                 loading={state.loading}

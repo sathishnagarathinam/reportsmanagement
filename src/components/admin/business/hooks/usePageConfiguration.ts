@@ -215,6 +215,22 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
     setFields(fields.filter((_, i) => i !== index));
   };
 
+  const moveFieldUp = (index: number) => {
+    if (index > 0) {
+      const newFields = [...fields];
+      [newFields[index - 1], newFields[index]] = [newFields[index], newFields[index - 1]];
+      setFields(newFields);
+    }
+  };
+
+  const moveFieldDown = (index: number) => {
+    if (index < fields.length - 1) {
+      const newFields = [...fields];
+      [newFields[index], newFields[index + 1]] = [newFields[index + 1], newFields[index]];
+      setFields(newFields);
+    }
+  };
+
   const handleSave = async () => {
     if (!selectedCard || !pageConfig) {
       setError('No report selected or page configuration loaded.');
@@ -382,6 +398,8 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
     addFieldFromDynamic,
     updateField,
     removeField,
+    moveFieldUp,
+    moveFieldDown,
     handleSave,
     handlePreview,
   };
