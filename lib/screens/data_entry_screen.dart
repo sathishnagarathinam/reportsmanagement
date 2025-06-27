@@ -214,6 +214,10 @@ class _DataEntryScreenState extends State<DataEntryScreen> {
         return FontAwesomeIcons.piggyBank;
       case 'fausers': // Added mapping for 'Technology'
         return FontAwesomeIcons.users;
+      case 'fashieldalt': // Added mapping for 'Compliance'
+        return FontAwesomeIcons.shield;
+      case 'fatruck': // Added mapping for 'MMU'
+        return FontAwesomeIcons.truck;
 
       // Add all your icon mappings here
       default:

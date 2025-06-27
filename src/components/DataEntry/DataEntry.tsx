@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../shared/Sidebar';
 import StatsCards from '../shared/StatsCards';
-import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH } from 'react-icons/fa';
+import { FaBriefcase, FaLaptopCode, FaBuilding, FaMoneyBill, FaPiggyBank, FaUniversity, FaUsers, FaSearch, FaEllipsisH, FaShieldAlt, FaTruck } from 'react-icons/fa';
 import { IconType } from 'react-icons';
 import { FormFilteringService } from '../../services/formFilteringService';
 import './DataEntry.css';
@@ -114,6 +114,8 @@ const DataEntry: React.FC = () => {
     if (normalizedTitle.includes('ippb')) return FaUniversity;
     if (normalizedTitle.includes('recruitment')) return FaUsers;
     if (normalizedTitle.includes('investigation')) return FaSearch;
+    if (normalizedTitle.includes('compliance')) return FaShieldAlt;
+    if (normalizedTitle.includes('mmu')) return FaTruck;
     return FaEllipsisH;
   };
 
@@ -135,6 +137,8 @@ const DataEntry: React.FC = () => {
       if (normalizedTitle.includes('ippb')) return '#3F51B5';
       if (normalizedTitle.includes('recruitment')) return '#009688';
       if (normalizedTitle.includes('investigation')) return '#795548';
+      if (normalizedTitle.includes('compliance')) return '#E91E63';
+      if (normalizedTitle.includes('mmu')) return '#FF5722';
       return '#607D8B';
     };
 

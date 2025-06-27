@@ -48,7 +48,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   Future<void> _removeFromFavorites(String formId, String formTitle) async {
     final success = await FavoritesService.removeFromFavorites(formId);
-    
+
     if (success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -118,6 +118,10 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         return FontAwesomeIcons.piggyBank;
       case 'fausers':
         return FontAwesomeIcons.users;
+      case 'fashieldalt': // Added mapping for 'Compliance'
+        return FontAwesomeIcons.shield;
+      case 'fatruck': // Added mapping for 'MMU'
+        return FontAwesomeIcons.truck;
       default:
         return FontAwesomeIcons.folder;
     }
@@ -223,7 +227,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Access denied: This form is not available for your office.'),
+              content: Text(
+                  'Access denied: This form is not available for your office.'),
               backgroundColor: Colors.orange,
               duration: Duration(seconds: 3),
             ),
@@ -281,7 +286,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       Text(
                         _errorMessage!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 16, color: Colors.grey),
+                        style:
+                            const TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                       const SizedBox(height: 16),
                       ElevatedButton(
@@ -304,7 +310,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           const SizedBox(height: 16),
                           const Text(
                             'No favorite forms yet',
-                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w500),
                           ),
                           const SizedBox(height: 8),
                           const Text(

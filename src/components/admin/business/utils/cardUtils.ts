@@ -1,18 +1,29 @@
-import { FaFolder, FaFileAlt, FaCog, FaFolderOpen } from 'react-icons/fa';
+import { FaFolder, FaFileAlt, FaCog, FaFolderOpen, FaShieldAlt, FaTruck } from 'react-icons/fa';
 import { Category } from '../types/PageBuilderTypes';
 
 // Helper function to generate card style (icon and color)
 export const generateCardStyle = (title: string) => {
+  const normalizedTitle = title.toLowerCase();
+
+  // Specific mappings for certain categories
+  if (normalizedTitle.includes('compliance')) {
+    return { icon: FaShieldAlt, color: '#E91E63' };
+  }
+  if (normalizedTitle.includes('mmu')) {
+    return { icon: FaTruck, color: '#FF5722' };
+  }
+
+  // Default hash-based approach for other categories
   const hash = title
     .split('')
     .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  
+
   const icons = [FaFolder, FaFileAlt, FaCog, FaFolderOpen]; // Add more icons if needed
   const colors = ['#FFC107', '#2196F3', '#4CAF50', '#E91E63', '#9C27B0'];
 
   const icon = icons[hash % icons.length];
   const color = colors[hash % colors.length];
-  
+
   return { icon, color };
 };
 

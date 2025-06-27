@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Categories Guide</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .category-info {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .step {
+            background: #e8f4fd;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+        .code {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+            border: 1px solid #e9ecef;
+        }
+        .icon-preview {
+            display: inline-block;
+            margin: 5px;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .compliance { color: #E91E63; }
+        .mmu { color: #FF5722; }
+    </style>
+</head>
+<body>
+    <h1>🚀 Add New Categories: Compliance & MMU</h1>
+    
+    <p>This guide will help you add the new "Compliance" and "MMU" categories to your Firebase database through the admin interface.</p>
+
+    <h2>📋 Categories to Add</h2>
+    
+    <div class="category-info">
+        <h3>1. Compliance Category</h3>
+        <div class="icon-preview compliance">
+            🛡️ <strong>Compliance</strong>
+        </div>
+        <ul>
+            <li><strong>Title:</strong> Compliance</li>
+            <li><strong>Icon:</strong> Shield (FaShieldAlt)</li>
+            <li><strong>Color:</strong> #E91E63 (Pink)</li>
+            <li><strong>Type:</strong> Top-level category</li>
+        </ul>
+    </div>
+
+    <div class="category-info">
+        <h3>2. MMU Category</h3>
+        <div class="icon-preview mmu">
+            🚛 <strong>MMU</strong>
+        </div>
+        <ul>
+            <li><strong>Title:</strong> MMU</li>
+            <li><strong>Icon:</strong> Truck (FaTruck)</li>
+            <li><strong>Color:</strong> #FF5722 (Deep Orange)</li>
+            <li><strong>Type:</strong> Top-level category</li>
+        </ul>
+    </div>
+
+    <h2>🔧 Steps to Add Categories</h2>
+
+    <div class="step">
+        <h3>Step 1: Access Admin Interface</h3>
+        <ol>
+            <li>Open your web application</li>
+            <li>Log in as an admin user</li>
+            <li>Navigate to the Admin section</li>
+            <li>Go to "Business Development" or any admin category management page</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h3>Step 2: Add Compliance Category</h3>
+        <ol>
+            <li>Click on "Create New Main Report" or similar button</li>
+            <li>Enter the following details:</li>
+            <div class="code">
+                Report ID: compliance-<span id="timestamp1"></span><br>
+                Report Title: Compliance
+            </div>
+            <li>Click "Create" or "Save"</li>
+            <li>The system will automatically assign the shield icon and pink color</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h3>Step 3: Add MMU Category</h3>
+        <ol>
+            <li>Click on "Create New Main Report" again</li>
+            <li>Enter the following details:</li>
+            <div class="code">
+                Report ID: mmu-<span id="timestamp2"></span><br>
+                Report Title: MMU
+            </div>
+            <li>Click "Create" or "Save"</li>
+            <li>The system will automatically assign the truck icon and orange color</li>
+        </ol>
+    </div>
+
+    <div class="step">
+        <h3>Step 4: Verify Categories</h3>
+        <ol>
+            <li>Go to the Data Entry section</li>
+            <li>You should see both new categories with their respective icons</li>
+            <li>Check the Flutter app to confirm they appear there as well</li>
+        </ol>
+    </div>
+
+    <h2>✅ What's Already Updated</h2>
+    <ul>
+        <li>✅ Web app icon mappings updated</li>
+        <li>✅ Color schemes configured</li>
+        <li>✅ Card generation logic enhanced</li>
+        <li>✅ Both DataEntry and CardPage components updated</li>
+    </ul>
+
+    <h2>🔍 Troubleshooting</h2>
+    <div class="category-info">
+        <h3>If categories don't appear:</h3>
+        <ul>
+            <li>Refresh the browser page</li>
+            <li>Check browser console for any errors</li>
+            <li>Verify you're logged in as an admin user</li>
+            <li>Make sure the category titles are exactly "Compliance" and "MMU"</li>
+        </ul>
+    </div>
+
+    <script>
+        // Generate timestamps for unique IDs
+        const timestamp = Date.now();
+        document.getElementById('timestamp1').textContent = timestamp;
+        document.getElementById('timestamp2').textContent = timestamp + 1;
+    </script>
+</body>
+</html>
