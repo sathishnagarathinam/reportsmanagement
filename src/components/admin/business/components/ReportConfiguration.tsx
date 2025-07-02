@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { REPORT_FREQUENCIES } from '../types/PageBuilderTypes';
 import { useOfficeDataSimple as useOfficeData } from '../hooks/useOfficeDataSimple';
 import CheckboxDropdown from './CheckboxDropdown';
-import { getUniqueOfficeTypes, filterOfficesByType } from '../utils/officeTypeUtils';
+import { getUniqueOfficeTypes, filterOfficesByType, extractOfficeType } from '../utils/officeTypeUtils';
 
 interface ReportConfigurationProps {
   selectedRegions: string[];
@@ -21,10 +21,12 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
   selectedRegions,
   selectedDivisions,
   selectedOffices,
+  selectedOfficeTypes = [],
   selectedFrequency,
   onRegionsChange,
   onDivisionsChange,
   onOfficesChange,
+  onOfficeTypesChange = () => {},
   onFrequencyChange,
 }) => {
   // Use custom hook to fetch office data from Supabase
@@ -71,7 +73,24 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
     });
   }
 
+  // Apply office type filtering if office types are selected
+  if (selectedOfficeTypes.length > 0) {
+    filteredOffices = filterOfficesByType(filteredOffices, selectedOfficeTypes);
+  }
+
   const availableOffices = filteredOffices;
+
+  // Get unique office types from all available offices (before office type filtering)
+  const preFilteredOffices = selectedDivisions.length > 0
+    ? offices.filter(office =>
+        selectedRegionNames.includes(office.region) &&
+        selectedDivisionNames.includes(office.division)
+      )
+    : selectedRegions.length > 0
+      ? offices.filter(office => selectedRegionNames.includes(office.region))
+      : offices;
+
+  const availableOfficeTypes = getUniqueOfficeTypes(preFilteredOffices.map(office => office.name));
 
   // Reset dependent selections when parent selections change
   useEffect(() => {
@@ -114,6 +133,32 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
       }
     }
   }, [selectedDivisions, selectedOffices, offices, selectedRegionNames, selectedDivisionNames, onOfficesChange]);
+
+  // Reset office types when divisions change
+  useEffect(() => {
+    if (selectedDivisions.length === 0) {
+      onOfficeTypesChange([]);
+    }
+  }, [selectedDivisions, onOfficeTypesChange]);
+
+  // Reset offices when office types change
+  useEffect(() => {
+    if (selectedOfficeTypes.length > 0) {
+      // Remove offices that don't match the selected office types
+      const validOffices = selectedOffices.filter(officeId => {
+        const office = offices.find(o => o.id === officeId);
+        if (!office) return false;
+
+        // Check if office matches any of the selected office types
+        const officeTypeFromName = extractOfficeType(office.name);
+        return selectedOfficeTypes.includes(officeTypeFromName);
+      });
+
+      if (validOffices.length !== selectedOffices.length) {
+        onOfficesChange(validOffices);
+      }
+    }
+  }, [selectedOfficeTypes, selectedOffices, offices, onOfficesChange]);
 
   return (
     <div className="report-configuration mt-3 mb-3">
@@ -199,7 +244,18 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
           </div>
 
           <div className="row mt-3">
-            <div className="col-md-12">
+            <div className="col-md-6">
+              <CheckboxDropdown
+                id="office-type-select"
+                label="Filter by Office Type"
+                options={availableOfficeTypes}
+                selectedValues={selectedOfficeTypes}
+                onChange={onOfficeTypesChange}
+                disabled={selectedDivisions.length === 0 || loading}
+                placeholder="-- Select Office Types --"
+              />
+            </div>
+            <div className="col-md-6">
               <CheckboxDropdown
                 id="office-select"
                 label="Select Offices"
