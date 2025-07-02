@@ -54,31 +54,50 @@ class ReportsRoutingService {
 
       print('📋 ReportsRoutingService: User office: "$officeName"');
 
-      // Check if office name ends with 'Division' (case-insensitive)
-      final isDivisionUser =
-          officeName.trim().toLowerCase().endsWith('division');
+      // Check if office name ends with 'Division' or contains 'Region' (case-insensitive)
+      final trimmedLower = officeName.trim().toLowerCase();
+      final isDivisionUser = trimmedLower.endsWith('division');
+      final isRegionUser =
+          trimmedLower.contains('region') && !trimmedLower.endsWith('division');
+      final isComprehensiveUser = isDivisionUser || isRegionUser;
 
       print('📋 ReportsRoutingService: Office name: "$officeName"');
-      print(
-          '📋 ReportsRoutingService: Trimmed lowercase: "${officeName.trim().toLowerCase()}"');
+      print('📋 ReportsRoutingService: Trimmed lowercase: "$trimmedLower"');
       print('📋 ReportsRoutingService: Ends with "division": $isDivisionUser');
+      print('📋 ReportsRoutingService: Contains "region": $isRegionUser');
       print(
-          '📋 ReportsRoutingService: Office type: ${isDivisionUser ? "DIVISION (Report Screen 1)" : "OFFICE (Report Screen 2)"}');
+          '📋 ReportsRoutingService: Comprehensive user (division OR region): $isComprehensiveUser');
+
+      String officeType;
+      if (isDivisionUser) {
+        officeType = "DIVISION (Report Screen 1)";
+      } else if (isRegionUser) {
+        officeType = "REGION (Report Screen 1)";
+      } else {
+        officeType = "OFFICE (Report Screen 2)";
+      }
+      print('📋 ReportsRoutingService: Office type: $officeType');
 
       // Cache the results
       _cachedUserOffice = officeName;
-      _cachedIsDivisionUser = isDivisionUser;
+      _cachedIsDivisionUser =
+          isComprehensiveUser; // Cache comprehensive user flag
       _cacheTimestamp = DateTime.now();
 
-      if (isDivisionUser) {
-        print(
-            '✅ ReportsRoutingService: User is Division-level → Report Screen 1 (Comprehensive)');
+      if (isComprehensiveUser) {
+        if (isDivisionUser) {
+          print(
+              '✅ ReportsRoutingService: User is Division-level → Report Screen 1 (Comprehensive)');
+        } else if (isRegionUser) {
+          print(
+              '✅ ReportsRoutingService: User is Region-level → Report Screen 1 (Comprehensive)');
+        }
       } else {
         print(
             '✅ ReportsRoutingService: User is Office-level → Report Screen 2 (Table View Only)');
       }
 
-      return isDivisionUser;
+      return isComprehensiveUser;
     } catch (error) {
       print('❌ ReportsRoutingService: Error determining report type: $error');
       return false; // Default to simple reports on error
@@ -130,14 +149,26 @@ class ReportsRoutingService {
       final officeName = await getCurrentUserOfficeName();
       print('🔍 getUserOfficeInfo: Got office name: $officeName');
 
-      // Use direct division logic test instead of cached shouldShowComprehensiveReports
+      // Use direct division/region logic test instead of cached shouldShowComprehensiveReports
       bool isDivisionUser = false;
+      bool isRegionUser = false;
+      bool isComprehensiveUser = false;
+
       if (officeName != null && officeName.trim().isNotEmpty) {
-        isDivisionUser = officeName.trim().toLowerCase().endsWith('division');
+        final trimmedLower = officeName.trim().toLowerCase();
+        isDivisionUser = trimmedLower.endsWith('division');
+        isRegionUser = trimmedLower.contains('region') &&
+            !trimmedLower.endsWith('division');
+        isComprehensiveUser = isDivisionUser || isRegionUser;
+
         print('🔍 getUserOfficeInfo: Direct division check: $isDivisionUser');
+        print('🔍 getUserOfficeInfo: Direct region check: $isRegionUser');
         print(
-            '🔍 getUserOfficeInfo: Office trimmed lowercase: "${officeName.trim().toLowerCase()}"');
+            '🔍 getUserOfficeInfo: Comprehensive user (division OR region): $isComprehensiveUser');
+        print(
+            '🔍 getUserOfficeInfo: Office trimmed lowercase: "$trimmedLower"');
         print('🔍 getUserOfficeInfo: Ends with "division": $isDivisionUser');
+        print('🔍 getUserOfficeInfo: Contains "region": $isRegionUser');
       }
 
       if (officeName == null) {
@@ -154,8 +185,14 @@ class ReportsRoutingService {
       String reportType;
       String description;
 
-      if (isDivisionUser) {
-        accessLevel = 'division';
+      if (isComprehensiveUser) {
+        if (isDivisionUser) {
+          accessLevel = 'division';
+        } else if (isRegionUser) {
+          accessLevel = 'region';
+        } else {
+          accessLevel = 'comprehensive';
+        }
         reportType = 'comprehensive';
         description =
             'Report Screen 1: Summary + Submissions + Table View tabs with multi-level office hierarchy data';
@@ -171,7 +208,10 @@ class ReportsRoutingService {
 
       return {
         'officeName': officeName,
-        'isDivisionUser': isDivisionUser,
+        'isDivisionUser':
+            isComprehensiveUser, // Changed to use comprehensive user flag
+        'isRegionUser': isRegionUser,
+        'isComprehensiveUser': isComprehensiveUser,
         'accessLevel': accessLevel,
         'reportType': reportType,
         'description': description,

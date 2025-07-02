@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { REPORT_FREQUENCIES } from '../types/PageBuilderTypes';
 import { useOfficeDataSimple as useOfficeData } from '../hooks/useOfficeDataSimple';
 import CheckboxDropdown from './CheckboxDropdown';
@@ -21,100 +21,14 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
   selectedRegions,
   selectedDivisions,
   selectedOffices,
-  selectedOfficeTypes = [],
   selectedFrequency,
   onRegionsChange,
   onDivisionsChange,
   onOfficesChange,
-  onOfficeTypesChange,
   onFrequencyChange,
 }) => {
   // Use custom hook to fetch office data from Supabase
   const { regions, divisions, offices, loading, error, refetch } = useOfficeData();
-
-  // Flag to prevent clearing selections during restoration
-  const [isRestoringSelections, setIsRestoringSelections] = useState(false);
-
-  // Get unique office types from available offices
-  const availableOfficeTypes = React.useMemo(() => {
-    const officeNames = offices.map(office => office.name);
-    return getUniqueOfficeTypes(officeNames);
-  }, [offices]);
-
-  // Debug logging to track selection changes
-  useEffect(() => {
-    console.log('🔍 ReportConfiguration - Current selections:', {
-      selectedRegions,
-      selectedDivisions,
-      selectedOffices,
-      selectedFrequency,
-      regionsCount: regions.length,
-      divisionsCount: divisions.length,
-      officesCount: offices.length,
-      loading
-    });
-  }, [selectedRegions, selectedDivisions, selectedOffices, selectedFrequency, regions.length, divisions.length, offices.length, loading]);
-
-  // Re-apply saved selections when office data is loaded
-  useEffect(() => {
-    if (!loading && regions.length > 0 && divisions.length > 0 && offices.length > 0) {
-      const pendingSelections = (window as any).pendingSavedSelections;
-
-      if (pendingSelections && Date.now() - pendingSelections.timestamp < 10000) { // Within 10 seconds
-        console.log('🔄 Office data loaded, re-applying saved selections:', pendingSelections);
-
-        // Set flag to prevent clearing during restoration
-        setIsRestoringSelections(true);
-
-        // Use setTimeout to apply selections in sequence and prevent interference
-        setTimeout(() => {
-          // Validate and re-apply saved regions
-          if (pendingSelections.savedRegions.length > 0) {
-            const validRegions = pendingSelections.savedRegions.filter((regionId: string) =>
-              regions.some(r => r.id === regionId)
-            );
-            if (validRegions.length > 0 && JSON.stringify(validRegions) !== JSON.stringify(selectedRegions)) {
-              console.log('🔄 Re-applying saved regions:', validRegions);
-              onRegionsChange(validRegions);
-            }
-          }
-
-          // Apply divisions after a short delay
-          setTimeout(() => {
-            if (pendingSelections.savedDivisions.length > 0) {
-              const validDivisions = pendingSelections.savedDivisions.filter((divisionId: string) =>
-                divisions.some(d => d.id === divisionId)
-              );
-              if (validDivisions.length > 0 && JSON.stringify(validDivisions) !== JSON.stringify(selectedDivisions)) {
-                console.log('🔄 Re-applying saved divisions:', validDivisions);
-                onDivisionsChange(validDivisions);
-              }
-            }
-
-            // Apply offices after another short delay
-            setTimeout(() => {
-              if (pendingSelections.savedOffices.length > 0) {
-                const validOffices = pendingSelections.savedOffices.filter((officeId: string) =>
-                  offices.some(o => o.id === officeId)
-                );
-                if (validOffices.length > 0 && JSON.stringify(validOffices) !== JSON.stringify(selectedOffices)) {
-                  console.log('🔄 Re-applying saved offices:', validOffices);
-                  onOfficesChange(validOffices);
-                }
-              }
-
-              // Clear restoration flag and pending selections
-              setTimeout(() => {
-                setIsRestoringSelections(false);
-                delete (window as any).pendingSavedSelections;
-                console.log('✅ Selection restoration completed');
-              }, 100);
-            }, 100);
-          }, 100);
-        }, 50);
-      }
-    }
-  }, [loading, regions, divisions, offices, onRegionsChange, onDivisionsChange, onOfficesChange]);
 
   // Filter divisions based on selected regions
   const selectedRegionNames = selectedRegions.map(regionId =>
@@ -130,7 +44,6 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
     divisions.find(d => d.id === divisionId)?.name
   ).filter(Boolean);
 
-  // First filter by region/division, then by office type
   let filteredOffices = selectedDivisions.length > 0
     ? offices.filter(office =>
         selectedRegionNames.includes(office.region) &&
@@ -143,18 +56,12 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
   // Add division offices to the list if divisions are selected
   // This ensures division offices like "Coimbatore division" appear in the office dropdown
   if (selectedDivisions.length > 0) {
-    const divisionOffices = offices.filter(office => {
-      return selectedDivisionNames.some(divisionName => {
-        const officeLower = office.name.toLowerCase();
-        const divisionLower = divisionName.toLowerCase();
-
-        // Check if office name contains the division name and "division"
-        const containsDivisionName = officeLower.includes(divisionLower);
-        const containsDivisionWord = officeLower.includes('division');
-
-        return containsDivisionName && containsDivisionWord;
-      });
-    });
+    const divisionOffices = offices.filter(office =>
+      selectedDivisionNames.some(divisionName =>
+        office.name.toLowerCase().includes(divisionName.toLowerCase()) &&
+        office.name.toLowerCase().includes('division')
+      )
+    );
 
     // Add division offices that aren't already in the filtered list
     divisionOffices.forEach(divisionOffice => {
@@ -164,14 +71,11 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
     });
   }
 
-  // Apply office type filter if any office types are selected
-  const availableOffices = selectedOfficeTypes.length > 0
-    ? filterOfficesByType(filteredOffices, selectedOfficeTypes)
-    : filteredOffices;
+  const availableOffices = filteredOffices;
 
-  // Reset dependent selections when parent selections change (but not during restoration)
+  // Reset dependent selections when parent selections change
   useEffect(() => {
-    if (!isRestoringSelections && selectedRegions.length > 0) {
+    if (selectedRegions.length > 0) {
       // Remove divisions that don't belong to selected regions
       const validDivisions = selectedDivisions.filter(divisionId => {
         const division = divisions.find(d => d.id === divisionId);
@@ -179,14 +83,13 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
       });
 
       if (validDivisions.length !== selectedDivisions.length) {
-        console.log('🔄 Clearing invalid divisions due to region change');
         onDivisionsChange(validDivisions);
       }
     }
-  }, [isRestoringSelections, selectedRegions, selectedDivisions, divisions, selectedRegionNames, onDivisionsChange]);
+  }, [selectedRegions, selectedDivisions, divisions, selectedRegionNames, onDivisionsChange]);
 
   useEffect(() => {
-    if (!isRestoringSelections && selectedDivisions.length > 0) {
+    if (selectedDivisions.length > 0) {
       // Remove offices that don't belong to selected regions/divisions
       // BUT allow division offices to remain selected
       const validOffices = selectedOffices.filter(officeId => {
@@ -207,11 +110,10 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
       });
 
       if (validOffices.length !== selectedOffices.length) {
-        console.log('🔄 Clearing invalid offices due to division change, keeping division offices');
         onOfficesChange(validOffices);
       }
     }
-  }, [isRestoringSelections, selectedDivisions, selectedOffices, offices, selectedRegionNames, selectedDivisionNames, onOfficesChange]);
+  }, [selectedDivisions, selectedOffices, offices, selectedRegionNames, selectedDivisionNames, onOfficesChange]);
 
   return (
     <div className="report-configuration mt-3 mb-3">
@@ -223,20 +125,8 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
             <div className="spinner-border spinner-border-sm me-2" role="status">
               <span className="visually-hidden">Loading...</span>
             </div>
-            Loading office data and restoring saved selections...
+            Loading office data...
           </div>
-        </div>
-      )}
-
-      {/* Debug info for saved selections */}
-      {!loading && (window as any).pendingSavedSelections && (
-        <div className="alert alert-warning">
-          <small>
-            🔄 Restoring saved selections:
-            Regions({(window as any).pendingSavedSelections.savedRegions.length}),
-            Divisions({(window as any).pendingSavedSelections.savedDivisions.length}),
-            Offices({(window as any).pendingSavedSelections.savedOffices.length})
-          </small>
         </div>
       )}
 
@@ -255,7 +145,7 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
       {!loading && !error && (
         <>
           <div className="row">
-            <div className="col-md-3">
+            <div className="col-md-4">
               <CheckboxDropdown
                 id="region-select"
                 label="Select Regions"
@@ -267,7 +157,7 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
               />
             </div>
 
-            <div className="col-md-3">
+            <div className="col-md-4">
               <CheckboxDropdown
                 id="division-select"
                 label="Select Divisions"
@@ -279,42 +169,7 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
               />
             </div>
 
-            <div className="col-md-3">
-              {onOfficeTypesChange && (
-                <CheckboxDropdown
-                  id="office-type-select"
-                  label="Filter by Office Type"
-                  options={availableOfficeTypes}
-                  selectedValues={selectedOfficeTypes}
-                  onChange={onOfficeTypesChange}
-                  disabled={loading}
-                  placeholder="-- All Office Types --"
-                />
-              )}
-            </div>
-          </div>
-
-          <div className="row mt-3">
-            <div className="col-md-9">
-              <CheckboxDropdown
-                id="office-select"
-                label="Select Offices"
-                options={availableOffices}
-                selectedValues={selectedOffices}
-                onChange={onOfficesChange}
-                disabled={selectedDivisions.length === 0 || loading}
-                placeholder="-- Select Offices --"
-              />
-              {selectedOfficeTypes.length > 0 && (
-                <small className="text-muted mt-1 d-block">
-                  Filtered by office types: {selectedOfficeTypes.map(typeId =>
-                    availableOfficeTypes.find(t => t.id === typeId)?.name
-                  ).filter(Boolean).join(', ')}
-                </small>
-              )}
-            </div>
-
-            <div className="col-md-3">
+            <div className="col-md-4">
               <div className="form-group">
                 <label htmlFor="frequency-select" className="form-label">
                   Report Frequency: <span className="text-danger">*</span>
@@ -340,6 +195,20 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          <div className="row mt-3">
+            <div className="col-md-12">
+              <CheckboxDropdown
+                id="office-select"
+                label="Select Offices"
+                options={availableOffices}
+                selectedValues={selectedOffices}
+                onChange={onOfficesChange}
+                disabled={selectedDivisions.length === 0 || loading}
+                placeholder="-- Select Offices --"
+              />
             </div>
           </div>
         </>

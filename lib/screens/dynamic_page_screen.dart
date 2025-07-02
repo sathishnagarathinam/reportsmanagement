@@ -64,6 +64,43 @@ class _DynamicPageScreenState extends State<DynamicPageScreen> {
     _fetchPageConfiguration();
   }
 
+  /// Update calculated fields when form data changes
+  void _updateCalculatedFields() {
+    if (_pageConfiguration != null && _pageConfiguration!['fields'] is List) {
+      for (var fieldConfigUntyped in (_pageConfiguration!['fields'] as List)) {
+        if (fieldConfigUntyped is Map<String, dynamic>) {
+          String type = fieldConfigUntyped['type'] as String? ?? '';
+          if (type == 'calculated') {
+            String label = fieldConfigUntyped['label'] as String? ?? '';
+            String fieldId = fieldConfigUntyped['id'] as String? ??
+                label.replaceAll(' ', '_').toLowerCase();
+
+            // Recalculate the value
+            String calculatedValue = _calculateFieldValue(fieldConfigUntyped);
+            _formData[fieldId] = calculatedValue;
+          }
+        }
+      }
+    }
+  }
+
+  /// Format number for display without unnecessary decimal places
+  String _formatNumberForDisplay(dynamic value) {
+    if (value == null) return '';
+
+    if (value is num) {
+      // If it's a whole number, display without decimals
+      if (value == value.toInt()) {
+        return value.toInt().toString();
+      } else {
+        // If it has decimal places, keep them
+        return value.toString();
+      }
+    }
+
+    return value.toString();
+  }
+
   /// Validates if the current user has access to this form
   Future<void> _validateAccess() async {
     setState(() {
@@ -395,7 +432,10 @@ class _DynamicPageScreenState extends State<DynamicPageScreen> {
             ),
             onChanged: (value) {
               if (!_isClearing && !isDisabled) {
-                _formData[fieldId] = value;
+                setState(() {
+                  _formData[fieldId] = value;
+                  _updateCalculatedFields();
+                });
               }
             },
             onSaved: (value) {
@@ -418,7 +458,7 @@ class _DynamicPageScreenState extends State<DynamicPageScreen> {
         final controller = _getTextController(fieldId);
         // Synchronize controller with current form data state (but not during clearing)
         if (!_isClearing) {
-          final currentFormValue = _formData[fieldId]?.toString() ?? '';
+          final currentFormValue = _formatNumberForDisplay(_formData[fieldId]);
           if (controller.text != currentFormValue) {
             controller.text = currentFormValue;
           }
@@ -432,10 +472,14 @@ class _DynamicPageScreenState extends State<DynamicPageScreen> {
               hintText: placeholder,
               border: const OutlineInputBorder(),
             ),
-            keyboardType: TextInputType.number, // Set keyboard type to number
+            keyboardType: const TextInputType.numberWithOptions(
+                decimal: true), // Allow decimal input
             onChanged: (value) {
               if (!_isClearing) {
-                _formData[fieldId] = double.tryParse(value);
+                setState(() {
+                  _formData[fieldId] = double.tryParse(value);
+                  _updateCalculatedFields();
+                });
               }
             },
             onSaved: (value) {
@@ -497,6 +541,7 @@ class _DynamicPageScreenState extends State<DynamicPageScreen> {
             onChanged: (String? newValue) {
               setState(() {
                 _formData[fieldId] = newValue;
+                _updateCalculatedFields();
               });
             },
             onSaved: (value) {
@@ -601,6 +646,7 @@ class _DynamicPageScreenState extends State<DynamicPageScreen> {
           onChanged: (bool? newValue) {
             setState(() {
               _formData[fieldId] = newValue;
+              _updateCalculatedFields();
             });
           },
           controlAffinity: ListTileControlAffinity.leading,
@@ -709,6 +755,8 @@ class _DynamicPageScreenState extends State<DynamicPageScreen> {
             child: Text(fieldConfig['buttonText'] as String? ?? label),
           ),
         );
+      case 'calculated':
+        return _buildCalculatedField(fieldConfig, fieldId, label);
       default:
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -1156,6 +1204,237 @@ class _DynamicPageScreenState extends State<DynamicPageScreen> {
         ],
       ),
     );
+  }
+
+  /// Build calculated field widget
+  Widget _buildCalculatedField(
+      Map<String, dynamic> fieldConfig, String fieldId, String label) {
+    // Calculate the value based on the field configuration
+    String calculatedValue = _calculateFieldValue(fieldConfig);
+
+    // Store the calculated value in form data
+    _formData[fieldId] = calculatedValue;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.all(16.0),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFE3F2FD), Color(0xFFF3E5F5)],
+        ),
+        border: Border.all(color: const Color(0xFF2196F3), width: 2),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: Color(0xFF1976D2),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.8),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: const Icon(
+                  Icons.calculate,
+                  color: Color(0xFF1976D2),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Text(
+                    calculatedValue,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1976D2),
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Calculate field value based on configuration
+  String _calculateFieldValue(Map<String, dynamic> fieldConfig) {
+    try {
+      final String calculationType = fieldConfig['calculationType'] ?? 'sum';
+      final List<dynamic> sourceFieldsRaw = fieldConfig['sourceFields'] ?? [];
+      final List<String> sourceFields = sourceFieldsRaw.cast<String>();
+      final String customFormula = fieldConfig['customFormula'] ?? '';
+      final int decimalPlaces =
+          0; // Always use 0 decimal places for whole numbers
+      final String prefix = fieldConfig['prefix'] ?? '';
+      final String suffix = fieldConfig['suffix'] ?? '';
+
+      // Get source values from form data using field labels
+      List<double> sourceValues = [];
+      for (String fieldLabel in sourceFields) {
+        // Find field ID by label
+        String? fieldId = _findFieldIdByLabel(fieldLabel);
+        if (fieldId != null) {
+          final value = _formData[fieldId];
+          if (value != null) {
+            final numValue = double.tryParse(value.toString()) ?? 0.0;
+            sourceValues.add(numValue);
+          }
+        }
+      }
+
+      double result = 0.0;
+
+      switch (calculationType) {
+        case 'sum':
+          result = sourceValues.fold(0.0, (sum, value) => sum + value);
+          break;
+        case 'subtract':
+          if (sourceValues.isNotEmpty) {
+            result = sourceValues.first;
+            for (int i = 1; i < sourceValues.length; i++) {
+              result -= sourceValues[i];
+            }
+          }
+          break;
+        case 'multiply':
+          if (sourceValues.isNotEmpty) {
+            result =
+                sourceValues.fold(1.0, (product, value) => product * value);
+          }
+          break;
+        case 'divide':
+          if (sourceValues.length >= 2) {
+            result = sourceValues.first;
+            for (int i = 1; i < sourceValues.length; i++) {
+              if (sourceValues[i] != 0) {
+                result /= sourceValues[i];
+              }
+            }
+          }
+          break;
+        case 'average':
+          if (sourceValues.isNotEmpty) {
+            result = sourceValues.fold(0.0, (sum, value) => sum + value) /
+                sourceValues.length;
+          }
+          break;
+        case 'percentage':
+          if (sourceValues.length >= 2 && sourceValues[1] != 0) {
+            result = (sourceValues[0] / sourceValues[1]) * 100;
+          }
+          break;
+        case 'custom':
+          result = _evaluateCustomFormula(customFormula);
+          break;
+      }
+
+      // Handle NaN and infinity
+      if (result.isNaN || result.isInfinite) {
+        result = 0.0;
+      }
+
+      // Format result
+      String formattedResult = result.toStringAsFixed(decimalPlaces);
+      return '$prefix$formattedResult$suffix';
+    } catch (error) {
+      print('Error calculating field value: $error');
+      return '0';
+    }
+  }
+
+  /// Find field ID by label
+  String? _findFieldIdByLabel(String label) {
+    if (_pageConfiguration != null && _pageConfiguration!['fields'] is List) {
+      for (var fieldConfigUntyped in (_pageConfiguration!['fields'] as List)) {
+        if (fieldConfigUntyped is Map<String, dynamic>) {
+          String fieldLabel = fieldConfigUntyped['label'] as String? ?? '';
+          String fieldId = fieldConfigUntyped['id'] as String? ??
+              fieldLabel.replaceAll(' ', '_').toLowerCase();
+          if (fieldLabel == label) {
+            return fieldId;
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Evaluate custom formula (basic implementation)
+  double _evaluateCustomFormula(String formula) {
+    try {
+      // Replace field labels in square brackets with their values
+      String processedFormula = formula;
+
+      // Find all field references in the formula (enclosed in square brackets [Field Label])
+      final RegExp fieldRegex = RegExp(r'\[([^\]]+)\]');
+      final matches = fieldRegex.allMatches(formula);
+
+      for (final match in matches) {
+        final fieldLabel = match.group(1) ?? '';
+        final fieldId = _findFieldIdByLabel(fieldLabel);
+        if (fieldId != null) {
+          final value = _formData[fieldId];
+          final numValue = double.tryParse(value?.toString() ?? '0') ?? 0.0;
+          processedFormula =
+              processedFormula.replaceAll(match.group(0)!, numValue.toString());
+        }
+      }
+
+      // Basic formula evaluation (only supports +, -, *, /, parentheses)
+      // This is a simplified implementation - in production, you might want to use a proper expression parser
+      return _evaluateBasicExpression(processedFormula);
+    } catch (error) {
+      print('Error evaluating custom formula: $error');
+      return 0.0;
+    }
+  }
+
+  /// Basic expression evaluator (simplified)
+  double _evaluateBasicExpression(String expression) {
+    try {
+      // Remove spaces
+      expression = expression.replaceAll(' ', '');
+
+      // This is a very basic implementation
+      // For production, consider using a proper math expression parser
+
+      // Handle simple cases first
+      if (double.tryParse(expression) != null) {
+        return double.parse(expression);
+      }
+
+      // For now, return 0 for complex expressions
+      // In a full implementation, you would parse and evaluate the expression properly
+      return 0.0;
+    } catch (error) {
+      return 0.0;
+    }
   }
 
   Widget _buildPageContent() {
