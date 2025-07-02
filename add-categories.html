@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add Categories to Firebase</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        .button:hover {
+            background: #0056b3;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .category-preview {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 Add Compliance & MMU Categories</h1>
+    
+    <p>This tool will add the Compliance and MMU categories directly to your Firebase database.</p>
+
+    <div class="category-preview">
+        <h3>Categories to be added:</h3>
+        <ul>
+            <li><strong>Compliance</strong> - Shield icon (🛡️) - Pink color</li>
+            <li><strong>MMU</strong> - Truck icon (🚛) - Orange color</li>
+        </ul>
+    </div>
+
+    <button class="button" onclick="addCategories()">Add Categories to Firebase</button>
+    <button class="button" onclick="listCategories()">List Existing Categories</button>
+
+    <div id="status"></div>
+    <div id="results"></div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getFirestore, collection, doc, setDoc, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCoBTaAwoQoR5B6FipxgyCF70ukN2rN2A0",
+            authDomain: "employeemanagementsystem-6e893.firebaseapp.com",
+            projectId: "employeemanagementsystem-6e893",
+            storageBucket: "employeemanagementsystem-6e893.firebasestorage.app",
+            messagingSenderId: "88739308700",
+            appId: "1:88739308700:web:66a8e34809583e53c1b959"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Make functions available globally
+        window.addCategories = async function() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            statusDiv.innerHTML = '<div class="loading">🔄 Adding categories to Firebase...</div>';
+            resultsDiv.innerHTML = '';
+
+            try {
+                // Add Compliance category
+                const complianceId = 'compliance-' + Date.now();
+                const complianceRef = doc(db, 'categories', complianceId);
+                await setDoc(complianceRef, {
+                    id: complianceId,
+                    title: 'Compliance',
+                    path: `/categories/${complianceId}`,
+                    parentId: '', // Top-level category (empty string)
+                    lastUpdated: new Date().toISOString(),
+                    icon: 'FaShieldAlt',
+                    color: '#E91E63',
+                    fields: [],
+                    isPage: true,
+                    pageId: complianceId,
+                });
+
+                // Add MMU category
+                const mmuId = 'mmu-' + Date.now();
+                const mmuRef = doc(db, 'categories', mmuId);
+                await setDoc(mmuRef, {
+                    id: mmuId,
+                    title: 'MMU',
+                    path: `/categories/${mmuId}`,
+                    parentId: '', // Top-level category (empty string)
+                    lastUpdated: new Date().toISOString(),
+                    icon: 'FaTruck',
+                    color: '#FF5722',
+                    fields: [],
+                    isPage: true,
+                    pageId: mmuId,
+                });
+
+                statusDiv.innerHTML = '<div class="success">✅ Categories added successfully!</div>';
+                resultsDiv.innerHTML = `
+                    <div class="success">
+                        <h3>Categories Added:</h3>
+                        <ul>
+                            <li><strong>Compliance</strong> - ID: ${complianceId}</li>
+                            <li><strong>MMU</strong> - ID: ${mmuId}</li>
+                        </ul>
+                        <p>🎉 The categories should now appear in both your web app and Flutter app!</p>
+                        <p>📱 Try refreshing your apps to see the new categories.</p>
+                    </div>
+                `;
+
+            } catch (error) {
+                console.error('Error adding categories:', error);
+                statusDiv.innerHTML = '<div class="error">❌ Error adding categories. Check console for details.</div>';
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h3>Error Details:</h3>
+                        <p>${error.message}</p>
+                        <p>This might be due to Firebase security rules. You may need to:</p>
+                        <ul>
+                            <li>Be logged in as an admin user</li>
+                            <li>Use the admin interface instead</li>
+                            <li>Check Firebase security rules</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        };
+
+        window.listCategories = async function() {
+            const statusDiv = document.getElementById('status');
+            const resultsDiv = document.getElementById('results');
+            
+            statusDiv.innerHTML = '<div class="loading">🔄 Loading existing categories...</div>';
+            resultsDiv.innerHTML = '';
+
+            try {
+                // Get all top-level categories
+                const q = query(collection(db, 'categories'), where('parentId', '==', ''));
+                const querySnapshot = await getDocs(q);
+                
+                let categoriesList = '<h3>Existing Top-Level Categories:</h3><ul>';
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    categoriesList += `<li><strong>${data.title}</strong> - Icon: ${data.icon} - Color: ${data.color}</li>`;
+                });
+                categoriesList += '</ul>';
+
+                statusDiv.innerHTML = '<div class="success">✅ Categories loaded successfully!</div>';
+                resultsDiv.innerHTML = `<div class="success">${categoriesList}</div>`;
+
+            } catch (error) {
+                console.error('Error loading categories:', error);
+                statusDiv.innerHTML = '<div class="error">❌ Error loading categories. Check console for details.</div>';
+                resultsDiv.innerHTML = `<div class="error"><p>${error.message}</p></div>`;
+            }
+        };
+    </script>
+</body>
+</html>
