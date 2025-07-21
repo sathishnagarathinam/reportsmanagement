@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Miscellaneous
 *.class
 *.log
@@ -110,3 +111,6 @@ firestore-debug.log
 .env.test.local
 .env.production.local
 >>>>>>> 0b92c423baeef737e689d8b15a77a3401c75eef0
+=======
+node_modules
+>>>>>>> 4f6c7d45bb8f2b4f882ef44c153885fce3b25248

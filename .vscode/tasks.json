@@ -1,0 +1,32 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "flutter_build_apk",
+            "type": "shell",
+            "command": "flutter build apk",
+            "options": {
+                "cwd": "mobile_app_flutter"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "reveal": "always"
+            }
+        },
+        {
+            "type": "dart",
+            "command": "dart",
+            "cwd": "mobile_app_flutter",
+            "args": [
+                "doc",
+                "."
+            ],
+            "problemMatcher": [],
+            "label": "dart: dart doc .",
+            "detail": "mobile_app_flutter"
+        }
+    ]
+}

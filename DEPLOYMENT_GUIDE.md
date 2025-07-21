@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+<<<<<<< HEAD
 # Deployment Guide - India Post Reports Management System
 
 ## Table of Contents
@@ -577,6 +578,8 @@ psql postgresql://user:pass@host:port/db < backup.sql
 **Last Updated**: January 2025  
 **Maintained By**: Development Team
 =======
+=======
+>>>>>>> 4f6c7d45bb8f2b4f882ef44c153885fce3b25248
 # 🚀 Deployment Guide - India Post Web App
 
 ## ✅ **Vercel Deployment (Fixed)**
@@ -672,4 +675,7 @@ reportsmanagement/
 - ✅ **Production Build:** Working
 
 Your web application is now ready for deployment! 🎉
+<<<<<<< HEAD
 >>>>>>> 0b92c423baeef737e689d8b15a77a3401c75eef0
+=======
+>>>>>>> 4f6c7d45bb8f2b4f882ef44c153885fce3b25248
