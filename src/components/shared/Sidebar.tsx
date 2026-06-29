@@ -30,11 +30,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userData }) => {
   return (
     <div className="sidebar">
       <div className="profile-section">
-        <img 
-          src="/Indiapost_Logo.png" 
-          alt="Company Logo" 
-          className="company-logo"
-        />
         <div className="avatar">
           <img src="/default-avatar.png" alt="User Avatar" />
         </div>

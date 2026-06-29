@@ -64,10 +64,12 @@ const PageBuilder: React.FC = () => {
     selectedDivisions: state.selectedDivisions,
     selectedOffices: state.selectedOffices,
     selectedFrequency: state.selectedFrequency,
+    fromEffectDate: state.fromEffectDate,
     setSelectedRegions: state.setSelectedRegions,
     setSelectedDivisions: state.setSelectedDivisions,
     setSelectedOffices: state.setSelectedOffices,
     setSelectedFrequency: state.setSelectedFrequency,
+    setFromEffectDate: state.setFromEffectDate,
   });
 
   // Initialize data on component mount
@@ -91,6 +93,9 @@ const PageBuilder: React.FC = () => {
         if (savedSelections.selectedFrequency) {
           state.setSelectedFrequency(savedSelections.selectedFrequency);
         }
+        if (savedSelections.fromEffectDate) {
+          state.setFromEffectDate(savedSelections.fromEffectDate);
+        }
       }
     }
   }, []);
@@ -102,16 +107,18 @@ const PageBuilder: React.FC = () => {
       selectedDivisions: state.selectedDivisions,
       selectedOffices: state.selectedOffices,
       selectedFrequency: state.selectedFrequency,
+      fromEffectDate: state.fromEffectDate,
     };
 
     // Only save if at least one selection is made
     if (selections.selectedRegions.length > 0 ||
         selections.selectedDivisions.length > 0 ||
         selections.selectedOffices.length > 0 ||
-        selections.selectedFrequency) {
+        selections.selectedFrequency ||
+        selections.fromEffectDate) {
       saveDropdownSelections(selections);
     }
-  }, [state.selectedRegions, state.selectedDivisions, state.selectedOffices, state.selectedFrequency]);
+  }, [state.selectedRegions, state.selectedDivisions, state.selectedOffices, state.selectedFrequency, state.fromEffectDate]);
 
   // Handle card and action changes
   useEffect(() => {
@@ -148,6 +155,7 @@ const PageBuilder: React.FC = () => {
         state.setSelectedDivisions([]);
         state.setSelectedOffices([]);
         state.setSelectedFrequency('');
+        state.setFromEffectDate('');
     } else {
         const cardIsLeaf = isLeafCard(cardId, state.categories);
         const cardIsMain = isMainCard(cardId, state.categories);
@@ -225,6 +233,10 @@ const PageBuilder: React.FC = () => {
 
   const handleFrequencyChange = (frequency: string) => {
     state.setSelectedFrequency(frequency);
+  };
+
+  const handleFromEffectDateChange = (date: string) => {
+    state.setFromEffectDate(date);
   };
 
   // All card management functions are now handled by the useCardManagement hook
@@ -330,11 +342,13 @@ const PageBuilder: React.FC = () => {
                 selectedOffices={state.selectedOffices}
                 selectedOfficeTypes={state.selectedOfficeTypes}
                 selectedFrequency={state.selectedFrequency}
+                fromEffectDate={state.fromEffectDate}
                 onRegionsChange={handleRegionsChange}
                 onDivisionsChange={handleDivisionsChange}
                 onOfficesChange={handleOfficesChange}
                 onOfficeTypesChange={handleOfficeTypesChange}
                 onFrequencyChange={handleFrequencyChange}
+                onFromEffectDateChange={handleFromEffectDateChange}
               />
             )}
 

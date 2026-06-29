@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabaseClient';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { auth } from '../config/firebase';
 import OfficeService from './officeService';
@@ -36,18 +36,30 @@ export class FormFilteringService {
         return null;
       }
 
-      const userDoc = await getDoc(doc(db, 'employees', user.uid));
-      
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
+      // Try employees collection first
+      const employeeDoc = await getDoc(doc(db, 'employees', user.uid));
+      if (employeeDoc.exists()) {
+        const userData = employeeDoc.data();
         const officeName = userData?.officeName || null;
-        
-        console.log('FormFilteringService: User office name:', officeName);
-        return officeName;
-      } else {
-        console.log('FormFilteringService: User document not found');
-        return null;
+        if (officeName) {
+          console.log('FormFilteringService: User office name from employees:', officeName);
+          return officeName;
+        }
       }
+
+      // Fallback to userProfiles collection
+      const userProfileDoc = await getDoc(doc(db, 'userProfiles', user.uid));
+      if (userProfileDoc.exists()) {
+        const userData = userProfileDoc.data();
+        const officeName = userData?.officeName || null;
+        if (officeName) {
+          console.log('FormFilteringService: User office name from userProfiles:', officeName);
+          return officeName;
+        }
+      }
+
+      console.log('FormFilteringService: User document not found in employees or userProfiles');
+      return null;
 
     } catch (error) {
       console.error('FormFilteringService: Error getting user office name:', error);
@@ -56,32 +68,28 @@ export class FormFilteringService {
   }
 
   /**
-   * Fetches form configurations from Supabase page_configurations table
+   * Fetches form configurations from Firebase page_configurations collection
    */
   static async fetchFormConfigurations(): Promise<FormConfiguration[]> {
     try {
-      console.log('FormFilteringService: Fetching form configurations from Supabase...');
+      console.log('FormFilteringService: Fetching form configurations from Firebase...');
 
-      const { data, error } = await supabase
-        .from('page_configurations')
-        .select('id, title, selected_offices, fields, last_updated')
-        .order('title', { ascending: true });
+      const snapshot = await getDocs(collection(db, 'page_configurations'));
+      const formConfigs: FormConfiguration[] = [];
 
-      if (error) {
-        console.error('FormFilteringService: Supabase error:', error);
-        throw error;
-      }
-
-      const formConfigs: FormConfiguration[] = (data || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        selectedOffices: item.selected_offices || [],
-        fields: item.fields || [],
-        lastUpdated: item.last_updated
-      }));
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        formConfigs.push({
+          id: doc.id,
+          title: data.title || 'Untitled Form',
+          selectedOffices: data.selectedOffices || data.selected_offices || [],
+          fields: data.fields || [],
+          lastUpdated: data.lastUpdated || data.last_updated || data.updatedAt
+        });
+      });
 
       console.log('FormFilteringService: Fetched', formConfigs.length, 'form configurations');
-      return formConfigs;
+      return formConfigs.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
     } catch (error) {
       console.error('FormFilteringService: Error fetching form configurations:', error);
@@ -124,7 +132,8 @@ export class FormFilteringService {
   }
 
   /**
-   * Checks if a specific form is accessible to the current user
+   * Checks if a specific form is accessible to the current user.
+   * Handles both office names and facility IDs in selectedOffices.
    */
   static async canUserAccessForm(formId: string): Promise<boolean> {
     try {
@@ -132,31 +141,55 @@ export class FormFilteringService {
 
       // Get user's office name
       const userOfficeName = await this.getCurrentUserOfficeName();
-      
-      // Get specific form configuration
-      const { data, error } = await supabase
-        .from('page_configurations')
-        .select('selected_offices')
-        .eq('id', formId)
-        .limit(1);
-
-      if (error) {
-        console.error('FormFilteringService: Error fetching form config:', error);
+      if (!userOfficeName) {
+        console.log('FormFilteringService: No user office found');
         return false;
       }
 
-      if (!data || data.length === 0) {
-        console.log('FormFilteringService: Form not found:', formId);
+      // Get specific form configuration from Firebase
+      const formDocRef = doc(db, 'page_configurations', formId);
+      const formDoc = await getDoc(formDocRef);
+
+      if (!formDoc.exists()) {
+        console.log('FormFilteringService: Form not found in Firebase:', formId);
         return false;
       }
 
-      const formConfig = data[0];
-      const selectedOffices = formConfig.selected_offices || [];
+      const formData = formDoc.data();
+      const selectedOffices = formData?.selectedOffices || formData?.selected_offices || [];
 
+      // First try exact office name match
       const hasAccess = OfficeService.checkFormAccess(userOfficeName, selectedOffices);
-      console.log(`FormFilteringService: User ${hasAccess ? 'CAN' : 'CANNOT'} access form:`, formId);
-      
-      return hasAccess;
+      if (hasAccess) {
+        console.log(`FormFilteringService: User CAN access form by office name:`, formId);
+        return true;
+      }
+
+      // Fallback: some forms may have facility IDs stored in selectedOffices.
+      // Look up the office name for each selected facility ID and compare.
+      const userOfficeNameNormalized = userOfficeName.toLowerCase().trim();
+      for (const selectedOffice of selectedOffices) {
+        const selectedValue = selectedOffice?.toString().trim() ?? '';
+        if (selectedValue === '') continue;
+
+        try {
+          const officeDocRef = doc(db, 'offices', selectedValue);
+          const officeDoc = await getDoc(officeDocRef);
+          if (officeDoc.exists()) {
+            const officeData = officeDoc.data();
+            const officeName = officeData?.officeName || officeData?.office_name || officeData?.name || '';
+            if (officeName.toLowerCase().trim() === userOfficeNameNormalized) {
+              console.log(`FormFilteringService: User CAN access form by facility ID:`, formId, selectedValue);
+              return true;
+            }
+          }
+        } catch (e) {
+          // Ignore lookup errors for non-facility-ID values
+        }
+      }
+
+      console.log(`FormFilteringService: User CANNOT access form:`, formId);
+      return false;
 
     } catch (error) {
       console.error('FormFilteringService: Error checking form access:', error);
@@ -174,29 +207,26 @@ export class FormFilteringService {
     try {
       console.log('FormFilteringService: Searching form configurations with criteria:', criteria);
 
-      let query = supabase
-        .from('page_configurations')
-        .select('id, title, selected_offices, fields, last_updated');
+      const snapshot = await getDocs(collection(db, 'page_configurations'));
+      let formConfigs: FormConfiguration[] = [];
 
-      // Add title filter if specified
-      if (criteria.title) {
-        query = query.ilike('title', `%${criteria.title}%`);
-      }
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const title = data.title || 'Untitled Form';
 
-      const { data, error } = await query.order('title', { ascending: true });
+        // Filter by title if specified
+        if (criteria.title && !title.toLowerCase().includes(criteria.title.toLowerCase())) {
+          return;
+        }
 
-      if (error) {
-        console.error('FormFilteringService: Search error:', error);
-        throw error;
-      }
-
-      let formConfigs: FormConfiguration[] = (data || []).map(item => ({
-        id: item.id,
-        title: item.title,
-        selectedOffices: item.selected_offices || [],
-        fields: item.fields || [],
-        lastUpdated: item.last_updated
-      }));
+        formConfigs.push({
+          id: doc.id,
+          title: title,
+          selectedOffices: data.selectedOffices || data.selected_offices || [],
+          fields: data.fields || [],
+          lastUpdated: data.lastUpdated || data.last_updated || data.updatedAt
+        });
+      });
 
       // Filter by office restrictions if specified
       if (criteria.hasOfficeRestrictions !== undefined) {
@@ -207,7 +237,7 @@ export class FormFilteringService {
       }
 
       console.log('FormFilteringService: Found', formConfigs.length, 'forms matching criteria');
-      return formConfigs;
+      return formConfigs.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
 
     } catch (error) {
       console.error('FormFilteringService: Error searching form configurations:', error);

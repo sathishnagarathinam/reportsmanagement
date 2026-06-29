@@ -1,20 +1,29 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Service for loading page configurations from Firebase and Supabase
+/// Service for loading page configurations from Firebase with ownership isolation
 class PageConfigService {
   static final _supabase = Supabase.instance.client;
   static final _firestore = FirebaseFirestore.instance;
+  static final _auth = FirebaseAuth.instance;
 
-  /// Loads page configuration from Firebase first, then Supabase if not found
+  /// Loads page configuration from Firebase with ownership check
   /// [pageId] - The page/form identifier
-  /// Returns the page configuration map or null if not found
+  /// Returns the page configuration map or null if not found or user is not owner
   static Future<Map<String, dynamic>?> loadPageConfig(String pageId) async {
     try {
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
+        print('⚠️ PageConfigService: User not authenticated');
+        return null;
+      }
+
       print('🔍 PageConfigService: Loading config for pageId: $pageId');
+      print('🔍 PageConfigService: Current user UID: ${currentUser.uid}');
 
       // Try Firebase first
-      final firebaseConfig = await _loadFromFirebase(pageId);
+      final firebaseConfig = await _loadFromFirebase(pageId, currentUser.uid);
       if (firebaseConfig != null) {
         print('✅ PageConfigService: Found config in Firebase');
         return _enhanceConfigWithReportFrequency(firebaseConfig);
@@ -36,22 +45,39 @@ class PageConfigService {
     }
   }
 
-  /// Loads page configuration from Firebase
-  static Future<Map<String, dynamic>?> _loadFromFirebase(String pageId) async {
+  /// Loads page configuration from Firebase with ownership verification
+  static Future<Map<String, dynamic>?> _loadFromFirebase(String pageId, String currentUserId) async {
     try {
       print('🔍 PageConfigService: Loading from Firebase...');
-      
-      final docRef = _firestore.collection('pages').doc(pageId);
+
+      final docRef = _firestore.collection('page_configurations').doc(pageId);
       final docSnap = await docRef.get();
 
-      if (docSnap.exists) {
-        final data = docSnap.data();
-        print('🔍 PageConfigService: Firebase data: $data');
-        print('🔍 PageConfigService: selectedFrequency in Firebase: ${data?['selectedFrequency']}');
-        return data;
+      if (!docSnap.exists) {
+        print('❌ PageConfigService: Config not found in Firebase');
+        return null;
       }
 
-      return null;
+      final data = docSnap.data();
+      print('🔍 PageConfigService: Firebase data: $data');
+
+      // Verify ownership before returning
+      if (data != null && data['ownerId'] != null) {
+        if (data['ownerId'] != currentUserId) {
+          print('❌ PageConfigService: Access denied - config owned by different user');
+          print('   Config owner: ${data['ownerId']}');
+          print('   Current user: $currentUserId');
+          return null;
+        }
+      } else {
+        // Old configs without ownerId field - user cannot access
+        print('❌ PageConfigService: Config missing ownerId field - access denied');
+        return null;
+      }
+
+      print('✅ PageConfigService: Config ownership verified');
+      print('🔍 PageConfigService: selectedFrequency in Firebase: ${data['selectedFrequency']}');
+      return data;
     } catch (error) {
       print('❌ PageConfigService: Error loading from Firebase: $error');
       return null;

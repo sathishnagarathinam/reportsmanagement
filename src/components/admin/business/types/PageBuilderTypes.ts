@@ -44,6 +44,8 @@ export interface PageConfig {
   title: string;
   fields: FormField[];
   lastUpdated: string;
+  createdAt?: string; // Timestamp of when config was first created
+  ownerId?: string; // Firebase UID of the user who owns this configuration
   isPage?: boolean; // New field
   pageId?: string;
   // Report configuration - updated to support both old single values and new arrays
@@ -54,6 +56,7 @@ export interface PageConfig {
   selectedDivisions?: string[]; // New array-based selections
   selectedOffices?: string[]; // New array-based selections
   selectedFrequency?: string;
+  fromEffectDate?: string; // Date when the form becomes effective (YYYY-MM-DD)
 }
 
 export interface Category {

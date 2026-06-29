@@ -21,6 +21,67 @@ const SimpleReports: React.FC<SimpleReportsProps> = () => {
   const [submissions, setSubmissions] = useState<FormSubmissionWithUserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Aggregate calculation helpers
+  const isNumericValue = (value: any): boolean => {
+    if (value === null || value === undefined || value === '') return false;
+    const num = Number(value);
+    return !isNaN(num) && isFinite(num);
+  };
+
+  const parseNumericValue = (value: any): number => {
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+  };
+
+  const isNumericColumn = (columnKey: string, rows: Array<{ [key: string]: string }>): boolean => {
+    let hasNumericValue = false;
+    let hasNonNumericValue = false;
+
+    for (const row of rows) {
+      const value = row[columnKey];
+      if (value !== undefined && value !== '') {
+        if (isNumericValue(value)) {
+          hasNumericValue = true;
+        } else {
+          hasNonNumericValue = true;
+        }
+      }
+    }
+
+    return hasNumericValue && !hasNonNumericValue;
+  };
+
+  const calculateColumnAggregate = (columnKey: string, rows: Array<{ [key: string]: string }>): {
+    sum: number;
+    average: number;
+    count: number;
+    isNumeric: boolean;
+  } => {
+    const numericValues: number[] = [];
+    let nonNullCount = 0;
+
+    for (const row of rows) {
+      const value = row[columnKey];
+      if (value !== undefined && value !== '') {
+        nonNullCount++;
+        if (isNumericValue(value)) {
+          numericValues.push(parseNumericValue(value));
+        }
+      }
+    }
+
+    const isNumeric = isNumericColumn(columnKey, rows);
+    const sum = numericValues.reduce((acc, val) => acc + val, 0);
+    const average = numericValues.length > 0 ? sum / numericValues.length : 0;
+
+    return {
+      sum,
+      average,
+      count: nonNullCount,
+      isNumeric
+    };
+  };
   const [formIdentifiers, setFormIdentifiers] = useState<string[]>([]);
   const [officeHierarchy, setOfficeHierarchy] = useState<string[]>([]); // User's office + reporting offices
 
@@ -536,6 +597,37 @@ const SimpleReports: React.FC<SimpleReportsProps> = () => {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot style={{ backgroundColor: '#f8f9fa', borderTop: '2px solid #dee2e6' }}>
+                  <tr style={{ borderTop: '2px solid #dee2e6' }}>
+                    {getTableColumns().map((column, index) => {
+                      const tableData = getTableData();
+                      const aggregate = calculateColumnAggregate(column, tableData);
+                      return (
+                        <td
+                          key={`footer-${index}`}
+                          style={{
+                            padding: '0.75rem 1rem',
+                            fontWeight: '600',
+                            fontSize: '0.8rem',
+                            color: '#333',
+                            borderTop: '2px solid #dee2e6',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          {aggregate.isNumeric ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span><strong>Sum:</strong> {aggregate.sum.toLocaleString()}</span>
+                              <span><strong>Avg:</strong> {aggregate.average.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                              <span><strong>Count:</strong> {aggregate.count}</span>
+                            </div>
+                          ) : (
+                            <span><strong>Count:</strong> {aggregate.count}</span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

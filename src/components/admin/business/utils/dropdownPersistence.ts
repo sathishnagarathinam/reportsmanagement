@@ -8,6 +8,7 @@ interface DropdownSelections {
   selectedDivisions: string[];
   selectedOffices: string[];
   selectedFrequency: string;
+  fromEffectDate: string;
 }
 
 const STORAGE_KEY = 'admin_dropdown_selections';
@@ -60,6 +61,7 @@ export const hasSelectionsChanged = (
     JSON.stringify(current.selectedRegions) !== JSON.stringify(previous.selectedRegions) ||
     JSON.stringify(current.selectedDivisions) !== JSON.stringify(previous.selectedDivisions) ||
     JSON.stringify(current.selectedOffices) !== JSON.stringify(previous.selectedOffices) ||
-    current.selectedFrequency !== previous.selectedFrequency
+    current.selectedFrequency !== previous.selectedFrequency ||
+    current.fromEffectDate !== previous.fromEffectDate
   );
 };

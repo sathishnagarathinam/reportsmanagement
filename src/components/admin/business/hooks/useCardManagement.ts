@@ -188,7 +188,7 @@ export const useCardManagement = (props: UseCardManagementProps) => {
 
       for (const id of idsToDelete) {
         batch.delete(doc(db, 'categories', id));
-        batch.delete(doc(db, 'pages', id));
+        batch.delete(doc(db, 'page_configurations', id));
       }
       await batch.commit();
       await fetchCategories();

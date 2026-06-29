@@ -155,7 +155,7 @@ const DynamicForm = React.forwardRef<DynamicFormRef, DynamicFormProps>(({ cardId
     setFormData({}); // Reset form data on new config load
     setErrors({});
     try {
-      const docRef = doc(db, 'pages', cardId); // Assuming 'pages' collection stores form configs
+      const docRef = doc(db, 'page_configurations', cardId); // Firebase page configurations collection
       console.log('Attempting to fetch form config for cardId:', cardId); // Add this line
       const docSnap = await getDoc(docRef);
 

@@ -41,7 +41,9 @@ export class FormConfigService {
       console.log(`🔍 FormConfigService: Fetching config for ${formIdentifier}`);
       
       // Try different possible document paths
+      // 'page_configurations' is the current web admin primary collection
       const possiblePaths = [
+        `page_configurations/${formIdentifier}`,
         `pages/${formIdentifier}`,
         `formConfigs/${formIdentifier}`,
         `forms/${formIdentifier}`

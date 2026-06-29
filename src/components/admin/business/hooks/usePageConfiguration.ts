@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
-import { db } from '../../../../config/firebase';
+import { db } from '../../../../config/firebaseClient';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { FormField, PageConfig, Category } from '../types/PageBuilderTypes';
 import { FormField as DynamicFormField, FormConfig as DynamicFormConfig, FormFieldOption } from '../../../shared/DynamicForm';
-import { supabasePageService } from '../services/supabasePageService';
+import { firebasePageService } from '../services/firebasePageService';
 
 interface UsePageConfigurationProps {
   categories: Category[];
@@ -23,11 +23,13 @@ interface UsePageConfigurationProps {
   selectedDivisions: string[];
   selectedOffices: string[];
   selectedFrequency: string;
+  fromEffectDate: string;
   // Setters for dropdown values
   setSelectedRegions: (regions: string[]) => void;
   setSelectedDivisions: (divisions: string[]) => void;
   setSelectedOffices: (offices: string[]) => void;
   setSelectedFrequency: (frequency: string) => void;
+  setFromEffectDate: (date: string) => void;
 }
 
 export const usePageConfiguration = (props: UsePageConfigurationProps) => {
@@ -48,10 +50,12 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
     selectedDivisions,
     selectedOffices,
     selectedFrequency,
+    fromEffectDate,
     setSelectedRegions,
     setSelectedDivisions,
     setSelectedOffices,
     setSelectedFrequency,
+    setFromEffectDate,
   } = props;
 
   const fetchDynamicFormFields = useCallback(async (formId: string) => {
@@ -84,24 +88,18 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
     setLoading(true);
     setError(null);
     try {
-      // Try loading from Firebase first
-      const docRef = doc(db, 'pages', cardId);
-      const docSnap = await getDoc(docRef);
-
+      // Load from Firebase
       let data: PageConfig | null = null;
 
-      if (docSnap.exists()) {
-        // Loading from Firebase
-        data = docSnap.data() as PageConfig;
-        console.log('📄 Found page config in Firebase');
-      } else {
-        // If not found in Firebase, try Supabase
-        try {
-          data = await supabasePageService.loadPageConfig(cardId);
-          console.log('📄 Found page config in Supabase');
-        } catch (supabaseError) {
+      try {
+        data = await firebasePageService.loadPageConfig(cardId);
+        if (data) {
+          console.log('📄 Found page config in Firebase');
+        } else {
           console.log('📄 No existing page config found, will create new');
         }
+      } catch (firebaseError) {
+        console.log('⚠️ Firebase load error:', firebaseError);
       }
 
       if (data) {
@@ -113,13 +111,15 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
         const savedDivisions = data.selectedDivisions || (data.selectedDivision ? [data.selectedDivision] : []);
         const savedOffices = data.selectedOffices || (data.selectedOffice ? [data.selectedOffice] : []);
         const savedFrequency = data.selectedFrequency || '';
+        const savedFromEffectDate = data.fromEffectDate || '';
 
         console.log('📊 Loading saved page configuration:', {
           cardId,
           savedRegions,
           savedDivisions,
           savedOffices,
-          savedFrequency
+          savedFrequency,
+          savedFromEffectDate,
         });
 
         // Store saved selections to apply them after office data is loaded
@@ -130,6 +130,7 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
           savedDivisions,
           savedOffices,
           savedFrequency,
+          savedFromEffectDate,
           timestamp: Date.now()
         };
 
@@ -150,6 +151,10 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
           setSelectedFrequency(savedFrequency);
           console.log('✅ Applied saved frequency:', savedFrequency);
         }
+        if (savedFromEffectDate) {
+          setFromEffectDate(savedFromEffectDate);
+          console.log('✅ Applied saved fromEffectDate:', savedFromEffectDate);
+        }
       } else {
         // Create new page config
         const card = categories.find(c => c.id === cardId);
@@ -165,6 +170,7 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
         setSelectedDivisions([]);
         setSelectedOffices([]);
         setSelectedFrequency('');
+        setFromEffectDate('');
       }
     } catch (err) {
       setError('Failed to load page configuration.');
@@ -174,7 +180,7 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
     } finally {
       setLoading(false);
     }
-  }, [categories, setLoading, setError, setPageConfig, setFields, setSelectedRegions, setSelectedDivisions, setSelectedOffices, setSelectedFrequency, selectedRegions, selectedDivisions, selectedOffices, selectedFrequency]);
+  }, [categories, setLoading, setError, setPageConfig, setFields, setSelectedRegions, setSelectedDivisions, setSelectedOffices, setSelectedFrequency, setFromEffectDate, selectedRegions, selectedDivisions, selectedOffices, selectedFrequency, fromEffectDate]);
 
   const addField = () => {
     const newField: FormField = {
@@ -296,31 +302,17 @@ export const usePageConfiguration = (props: UsePageConfigurationProps) => {
         selectedDivisions,
         selectedOffices,
         selectedFrequency,
+        fromEffectDate,
       };
 
-      // Save to both Firebase and Supabase
-      const savePromises = [];
-
-      // Save to Firebase
-      savePromises.push(
-        setDoc(doc(db, 'pages', selectedCard), updatedPageConfig)
-          .catch(err => {
-            console.error('Firebase save failed:', err);
-            throw new Error(`Firebase save failed: ${err.message}`);
-          })
-      );
-
-      // Save to Supabase
-      savePromises.push(
-        supabasePageService.savePageConfig(updatedPageConfig)
-          .catch(err => {
-            console.error('Supabase save failed:', err);
-            throw new Error(`Supabase save failed: ${err.message}`);
-          })
-      );
-
-      // Wait for both saves to complete
-      await Promise.all(savePromises);
+      // Save to Firebase using the Firebase page service
+      try {
+        await firebasePageService.savePageConfig(updatedPageConfig);
+        console.log('✅ Page configuration saved to Firebase successfully');
+      } catch (err) {
+        console.error('Firebase save failed:', err);
+        throw new Error(`Firebase save failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
 
       setPageConfig(updatedPageConfig);
       setSuccess('Page configuration saved successfully!');

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FormSubmissionWithUserData } from '../../services/reportsService';
 import FormConfigService from '../../services/formConfigService';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 interface DynamicReportsTableProps {
   submissions: FormSubmissionWithUserData[];
@@ -22,6 +24,120 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
   const [columns, setColumns] = useState<TableColumn[]>([]);
   const [processedData, setProcessedData] = useState<Array<Record<string, any>>>([]);
   const [loadingColumns, setLoadingColumns] = useState(true);
+  const [editingSubmission, setEditingSubmission] = useState<FormSubmissionWithUserData | null>(null);
+  const [editedData, setEditedData] = useState<Record<string, any>>({});
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Helper function to check if a value is numeric
+  const isNumericValue = (value: any): boolean => {
+    if (value === null || value === undefined || value === '') return false;
+    const num = Number(value);
+    return !isNaN(num) && isFinite(num);
+  };
+
+  // Helper function to parse numeric value
+  const parseNumericValue = (value: any): number => {
+    const num = Number(value);
+    return isNaN(num) ? 0 : num;
+  };
+
+  // Helper function to determine if a column is numeric
+  const isNumericColumn = (columnKey: string, rows: Array<Record<string, any>>): boolean => {
+    let hasNumericValue = false;
+    let hasNonNumericValue = false;
+
+    for (const row of rows) {
+      const value = row[columnKey];
+      if (value !== null && value !== undefined && value !== '') {
+        if (isNumericValue(value)) {
+          hasNumericValue = true;
+        } else {
+          hasNonNumericValue = true;
+        }
+      }
+    }
+
+    // Only treat as numeric if there are numeric values and no conflicting non-numeric values
+    return hasNumericValue && !hasNonNumericValue;
+  };
+
+  // Handle edit button click
+  const handleEditClick = (submissionId: string) => {
+    const submission = submissions.find(s => s.id === submissionId);
+    if (submission) {
+      setEditingSubmission(submission);
+      setEditedData({ ...submission.submission_data });
+      setEditError(null);
+    }
+  };
+
+  // Handle save edited submission
+  const handleSaveEdit = async () => {
+    if (!editingSubmission) return;
+
+    setSavingEdit(true);
+    setEditError(null);
+
+    try {
+      const docRef = doc(db, 'form_submissions', editingSubmission.id);
+      await updateDoc(docRef, {
+        submissionData: editedData,
+        updatedAt: new Date().toISOString()
+      });
+
+      setEditingSubmission(null);
+      setEditedData({});
+
+      // Refresh parent data to reflect the update
+      onRefresh();
+    } catch (error) {
+      console.error('Error updating submission:', error);
+      setEditError('Failed to save changes. Please try again.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  // Handle input change in edit modal
+  const handleEditInputChange = (key: string, value: string) => {
+    setEditedData(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  // Calculate aggregate values for a column
+  const calculateColumnAggregate = (columnKey: string, rows: Array<Record<string, any>>): {
+    sum: number;
+    average: number;
+    count: number;
+    isNumeric: boolean;
+  } => {
+    const numericValues: number[] = [];
+    let nonNullCount = 0;
+
+    for (const row of rows) {
+      const value = row[columnKey];
+      if (value !== null && value !== undefined && value !== '') {
+        nonNullCount++;
+        if (isNumericValue(value)) {
+          numericValues.push(parseNumericValue(value));
+        }
+      }
+    }
+
+    const isNumeric = isNumericColumn(columnKey, rows);
+    const sum = numericValues.reduce((acc, val) => acc + val, 0);
+    const average = numericValues.length > 0 ? sum / numericValues.length : 0;
+
+    return {
+      sum,
+      average,
+      count: nonNullCount,
+      isNumeric
+    };
+  };
 
   useEffect(() => {
     buildDynamicColumns();
@@ -401,6 +517,17 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
                 {column.label}
               </th>
             ))}
+            <th
+              style={{
+                padding: '1rem 0.75rem',
+                textAlign: 'left',
+                fontWeight: '600',
+                borderBottom: '2px solid #dee2e6',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Actions
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -443,9 +570,74 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
                   )}
                 </td>
               ))}
+              <td
+                style={{
+                  padding: '0.75rem',
+                  verticalAlign: 'top',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <button
+                  className="btn btn-sm btn-outline-primary"
+                  onClick={() => handleEditClick(row.id)}
+                  title="Edit submission"
+                >
+                  ✏️ Edit
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
+        <tfoot style={{ backgroundColor: '#f8f9fa', borderTop: '2px solid #dee2e6' }}>
+          <tr style={{ borderTop: '2px solid #dee2e6' }}>
+            {columns.map((column) => {
+              const aggregate = calculateColumnAggregate(column.key, processedData);
+              return (
+                <td
+                  key={`footer-${column.key}`}
+                  style={{
+                    padding: '0.75rem',
+                    fontWeight: '600',
+                    fontSize: '0.85rem',
+                    color: '#333',
+                    borderTop: '2px solid #dee2e6',
+                    whiteSpace: 'nowrap',
+                    minWidth: column.type === 'field' ? '120px' : 'auto'
+                  }}
+                >
+                  {aggregate.isNumeric ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                      <span>
+                        <strong>Sum:</strong> {aggregate.sum.toLocaleString()}
+                      </span>
+                      <span>
+                        <strong>Avg:</strong> {aggregate.average.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </span>
+                      <span>
+                        <strong>Count:</strong> {aggregate.count}
+                      </span>
+                    </div>
+                  ) : (
+                    <span>
+                      <strong>Count:</strong> {aggregate.count}
+                    </span>
+                  )}
+                </td>
+              );
+            })}
+            <td
+              style={{
+                padding: '0.75rem',
+                fontWeight: '600',
+                fontSize: '0.85rem',
+                color: '#333',
+                borderTop: '2px solid #dee2e6'
+              }}
+            >
+              <strong>Count:</strong> {processedData.length}
+            </td>
+          </tr>
+        </tfoot>
       </table>
 
       {/* Table Footer */}
@@ -473,6 +665,80 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
           🔄 Refresh
         </button>
       </div>
+
+      {/* Edit Modal */}
+      {editingSubmission && (
+        <div className="modal show" style={{ display: 'block', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg" style={{ marginTop: '5rem' }}>
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Edit Submission</h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setEditingSubmission(null)}
+                  aria-label="Close"
+                ></button>
+              </div>
+              <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                {editError && (
+                  <div className="alert alert-danger" role="alert">
+                    {editError}
+                  </div>
+                )}
+                <div className="mb-3">
+                  <strong>Office:</strong> {editingSubmission.user_office || 'Unknown Office'}
+                </div>
+                <div className="mb-3">
+                  <strong>Submitted by:</strong> {editingSubmission.user_name || 'Unknown'}
+                </div>
+                <div className="mb-3">
+                  <strong>Submission ID:</strong> {editingSubmission.id}
+                </div>
+                <hr />
+                {Object.keys(editedData).length === 0 ? (
+                  <div className="alert alert-info">
+                    No editable fields found in this submission.
+                  </div>
+                ) : (
+                  Object.entries(editedData).map(([key, value]) => (
+                    <div className="mb-3" key={key}>
+                      <label className="form-label" htmlFor={`edit-${key}`}>
+                        {key}
+                      </label>
+                      <input
+                        id={`edit-${key}`}
+                        type="text"
+                        className="form-control"
+                        value={value === null || value === undefined ? '' : String(value)}
+                        onChange={(e) => handleEditInputChange(key, e.target.value)}
+                      />
+                    </div>
+                  ))
+                )}
+              </div>
+              <div className="modal-footer">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setEditingSubmission(null)}
+                  disabled={savingEdit}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleSaveEdit}
+                  disabled={savingEdit || Object.keys(editedData).length === 0}
+                >
+                  {savingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

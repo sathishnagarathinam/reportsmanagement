@@ -1,4 +1,6 @@
 import { supabase } from '../config/supabaseClient';
+import { db } from '../config/firebaseClient';
+import { collection, getDocs, query as firestoreQuery, where, orderBy, limit, QueryConstraint, QuerySnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 
 export interface FormSubmission {
   id: string;
@@ -38,23 +40,133 @@ export interface FormSubmissionWithUserData extends FormSubmission {
 class ReportsService {
   private static readonly CACHE_EXPIRY_MINUTES = 5;
   private static cache = new Map<string, { data: any; timestamp: Date }>();
+  private static useFirebase = true; // Default to Firebase now that the app migrated
+  private static firebaseInitialized = false;
+
+  /**
+   * Converts a Firestore Timestamp, Date, or string to an ISO string.
+   */
+  private static toISOString(value: any): string {
+    if (!value) return new Date().toISOString();
+    if (value instanceof Timestamp) return value.toDate().toISOString();
+    if (value instanceof Date) return value.toISOString();
+    if (typeof value === 'string') return value;
+    return new Date().toISOString();
+  }
+
+  /**
+   * Extracts the most likely office name from submission data by searching
+   * all fields for office-like values.
+   */
+  private static extractOfficeFromSubmissionData(submissionData: any): string | null {
+    if (!submissionData || typeof submissionData !== 'object') return null;
+
+    const officeKeyPatterns = [
+      'officeName', 'office_name', 'office', 'Office', 'OFFICE',
+      'selectedOffice', 'selected_office', 'assignedOffice', 'assigned_office',
+      'userOffice', 'user_office'
+    ];
+
+    for (const key of officeKeyPatterns) {
+      if (submissionData[key] && typeof submissionData[key] === 'string') {
+        const value = submissionData[key].trim();
+        if (value) return value;
+      }
+    }
+
+    for (const [key, value] of Object.entries(submissionData)) {
+      if (typeof value === 'string' && value.trim()) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('office') || lowerKey.includes('branch') ||
+            lowerKey.includes('division') || lowerKey.includes('department')) {
+          return value.trim();
+        }
+      }
+    }
+
+    for (const value of Object.values(submissionData)) {
+      if (typeof value === 'string' && value.trim()) {
+        const lowerValue = value.toLowerCase();
+        if (lowerValue.includes(' so') || lowerValue.includes(' bo') ||
+            lowerValue.includes(' ro') || lowerValue.includes(' ho') ||
+            lowerValue.includes('office') || lowerValue.includes('branch')) {
+          return value.trim();
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Initialize Firebase fallback if Supabase fails
+   */
+  private static async initializeFirebaseIfNeeded(): Promise<void> {
+    if (!this.firebaseInitialized) {
+      try {
+        // Test if we have access to Supabase first
+        await this.testSupabaseAccess();
+        this.useFirebase = false;
+        console.log('✅ ReportsService: Using Supabase for reports');
+      } catch (err) {
+        console.log('⚠️ ReportsService: Supabase not available, switching to Firebase fallback');
+        this.useFirebase = true;
+        console.log('✅ ReportsService: Using Firebase for reports');
+      }
+      this.firebaseInitialized = true;
+    }
+  }
+
+  /**
+   * Test if Supabase is accessible
+   */
+  private static async testSupabaseAccess(): Promise<void> {
+    const tablesToTry = ['reports_data_view', 'dynamic_form_submissions', 'reports_test_data'];
+
+    for (const tableName of tablesToTry) {
+      try {
+        const result = await supabase
+          .from(tableName)
+          .select('count', { count: 'exact', head: true });
+
+        if (!result.error && result.count !== null) {
+          return; // Supabase is working
+        }
+      } catch (err) {
+        // Continue to next table
+      }
+    }
+
+    throw new Error('No Supabase tables accessible');
+  }
 
   /**
    * Fetches form submissions with optional filtering
    */
   static async getFormSubmissions(filters: ReportsFilter = {}): Promise<FormSubmissionWithUserData[]> {
     try {
-      console.log('🔍 ReportsService: Starting getFormSubmissions...');
-      console.log('📋 ReportsService: Filters:', JSON.stringify(filters, null, 2));
+      await this.initializeFirebaseIfNeeded();
 
-      // Test multiple data sources to find working one
-      console.log('🔗 ReportsService: Testing multiple data sources...');
+      if (this.useFirebase) {
+        return this.getFormSubmissionsFromFirebase(filters);
+      } else {
+        return this.getFormSubmissionsFromSupabase(filters);
+      }
+    } catch (error) {
+      console.error('❌ ReportsService: Error fetching submissions:', error);
+      // Return empty array instead of throwing error
+      return [];
+    }
+  }
+
+  /**
+   * Fetches form submissions from Supabase
+   */
+  private static async getFormSubmissionsFromSupabase(filters: ReportsFilter = {}): Promise<FormSubmissionWithUserData[]> {
+    try {
+      console.log('🔍 ReportsService: Starting getFormSubmissions from Supabase...');
 
       let workingTable = null;
-      let testData = null;
-      let testError = null;
-
-      // Try different tables in order of preference
       const tablesToTry = [
         'reports_data_view',      // Unified view (preferred)
         'dynamic_form_submissions', // Original table
@@ -70,11 +182,8 @@ class ReportsService {
 
           if (!result.error && result.count !== null) {
             workingTable = tableName;
-            testData = result.count;
             console.log(`✅ ReportsService: ${tableName} works with ${result.count} records`);
             break;
-          } else {
-            console.log(`❌ ReportsService: ${tableName} failed:`, result.error?.message);
           }
         } catch (err) {
           console.log(`❌ ReportsService: ${tableName} error:`, err);
@@ -82,15 +191,8 @@ class ReportsService {
       }
 
       if (!workingTable) {
-        console.error('❌ ReportsService: No working data source found');
-        throw new Error('No accessible data source found. Please run the DIRECT_QUERY_APPROACH.sql script.');
+        throw new Error('No accessible Supabase data source');
       }
-
-      console.log('✅ ReportsService: Using data source:', workingTable);
-      console.log('📊 ReportsService: Found', testData, 'records');
-
-      // Now fetch the actual data from the working table with user_profile join
-      console.log('📥 ReportsService: Fetching submissions data with user profile join...');
 
       let query = supabase
         .from(workingTable)
@@ -226,10 +328,143 @@ class ReportsService {
   }
 
   /**
+   * Fetches form submissions from Firebase (primary data source)
+   */
+  private static async getFormSubmissionsFromFirebase(filters: ReportsFilter = {}): Promise<FormSubmissionWithUserData[]> {
+    try {
+      console.log('🔥 ReportsService: Fetching submissions from Firebase...');
+
+      // The mobile app saves submissions using camelCase fields:
+      // formIdentifier, userId, employeeId, submissionData, createdAt, updatedAt
+      // Build Firestore query constraints. Note: ordering/filtering by createdAt may
+      // require a Firestore index; if that fails, we fall back to a full scan.
+      let snapshot: QuerySnapshot<DocumentData, DocumentData>;
+      try {
+        const constraints: QueryConstraint[] = [
+          orderBy('createdAt', 'desc')
+        ];
+
+        if (filters.formIdentifier) {
+          constraints.push(where('formIdentifier', '==', filters.formIdentifier));
+        }
+
+        if (filters.userId) {
+          constraints.push(where('userId', '==', filters.userId));
+        }
+
+        if (filters.startDate) {
+          constraints.push(where('createdAt', '>=', filters.startDate));
+        }
+
+        if (filters.endDate) {
+          constraints.push(where('createdAt', '<=', filters.endDate));
+        }
+
+        if (filters.limit) {
+          constraints.push(limit(filters.limit));
+        }
+
+        const q = firestoreQuery(
+          collection(db, 'form_submissions'),
+          ...constraints
+        );
+
+        snapshot = await getDocs(q);
+      } catch (queryError) {
+        console.warn('⚠️ ReportsService: Indexed query failed, falling back to full scan:', queryError);
+        const q = firestoreQuery(collection(db, 'form_submissions'));
+        snapshot = await getDocs(q);
+      }
+
+      const submissions = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const submissionData = data.submissionData || data.submission_data || {};
+        const submittedAt = data.createdAt || data.submitted_at || data.created_at;
+        const createdAt = data.createdAt || data.created_at;
+        const extractedOffice = this.extractOfficeFromSubmissionData(submissionData);
+
+        return {
+          id: doc.id,
+          form_identifier: data.formIdentifier || data.form_identifier || '',
+          user_id: data.userId || data.user_id || null,
+          employee_id: data.employeeId || data.employee_id || null,
+          submission_data: submissionData,
+          submitted_at: this.toISOString(submittedAt),
+          created_at: this.toISOString(createdAt),
+          user_name: data.employeeId || data.employee_id || data.userName || data.user_name || 'Unknown',
+          user_email: data.userEmail || data.user_email || 'user@example.com',
+          user_office: data.userOffice || data.user_office || extractedOffice || 'Unknown Office'
+        };
+      });
+
+      console.log(`✅ ReportsService: Fetched ${submissions.length} submissions from Firebase`);
+
+      // Apply client-side filters for safety (and fallback mode)
+      let filteredSubmissions = submissions;
+
+      if (filters.formIdentifier) {
+        filteredSubmissions = filteredSubmissions.filter(
+          s => s.form_identifier === filters.formIdentifier
+        );
+      }
+
+      if (filters.userId) {
+        filteredSubmissions = filteredSubmissions.filter(
+          s => s.user_id === filters.userId
+        );
+      }
+
+      if (filters.startDate) {
+        filteredSubmissions = filteredSubmissions.filter(
+          s => s.submitted_at >= filters.startDate!
+        );
+      }
+
+      if (filters.endDate) {
+        filteredSubmissions = filteredSubmissions.filter(
+          s => s.submitted_at <= filters.endDate!
+        );
+      }
+
+      if (filters.officeName) {
+        const filterName = filters.officeName!.toLowerCase().trim();
+        filteredSubmissions = filteredSubmissions.filter(submission => {
+          // Primary: check mapped user_office
+          const userOffice = submission.user_office?.toLowerCase().trim() || '';
+          if (userOffice.includes(filterName)) return true;
+
+          // Fallback: search all submissionData values for the office name
+          if (submission.submission_data) {
+            for (const [key, value] of Object.entries(submission.submission_data)) {
+              if (typeof value === 'string') {
+                const stringValue = value.toLowerCase().trim();
+                if (stringValue.includes(filterName)) return true;
+              }
+            }
+          }
+
+          return false;
+        });
+      }
+
+      if (filters.limit) {
+        filteredSubmissions = filteredSubmissions.slice(0, filters.limit);
+      }
+
+      return filteredSubmissions;
+    } catch (error) {
+      console.error('❌ ReportsService: Error fetching from Firebase:', error);
+      return [];
+    }
+  }
+
+  /**
    * Gets summary statistics for reports dashboard
    */
   static async getReportsSummary(): Promise<ReportsSummary> {
     try {
+      await this.initializeFirebaseIfNeeded();
+
       console.log('ReportsService: Fetching reports summary...');
 
       // Check cache first
@@ -238,6 +473,41 @@ class ReportsService {
       if (cached && this.isCacheValid(cached.timestamp)) {
         console.log('ReportsService: Returning cached summary');
         return cached.data;
+      }
+
+      if (this.useFirebase) {
+        return this.getReportsSummaryFromFirebase();
+      } else {
+        return this.getReportsSummaryFromSupabase();
+      }
+    } catch (error) {
+      console.error('❌ ReportsService: Error fetching summary:', error);
+      return {
+        totalSubmissions: 0,
+        uniqueForms: 0,
+        uniqueUsers: 0,
+        submissionsToday: 0,
+        submissionsThisWeek: 0,
+        submissionsThisMonth: 0
+      };
+    }
+  }
+
+  /**
+   * Gets summary statistics from Supabase
+   */
+  private static async getReportsSummaryFromSupabase(): Promise<ReportsSummary> {
+    try {
+      // Check cache first
+      const cacheKey = 'reportsSummary';
+      const cachedData = this.cache.get(cacheKey);
+
+      if (cachedData) {
+        const cacheAgeMinutes = (new Date().getTime() - cachedData.timestamp.getTime()) / (1000 * 60);
+        if (cacheAgeMinutes < this.CACHE_EXPIRY_MINUTES) {
+          console.log('📊 ReportsService: Returning cached summary');
+          return cachedData.data;
+        }
       }
 
       const now = new Date();
@@ -335,7 +605,44 @@ class ReportsService {
       return summary;
 
     } catch (error) {
-      console.error('ReportsService: Error in getReportsSummary:', error);
+      console.error('ReportsService: Error in getReportsSummaryFromSupabase:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Gets summary statistics from Firebase (fallback)
+   */
+  private static async getReportsSummaryFromFirebase(): Promise<ReportsSummary> {
+    try {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const monthAgo = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+      // Fetch all submissions from Firebase
+      const allSubmissions = await this.getFormSubmissionsFromFirebase();
+
+      const totalSubmissions = allSubmissions.length;
+      const uniqueForms = new Set(allSubmissions.map(s => s.form_identifier)).size;
+      const uniqueUsers = new Set(allSubmissions.map(s => s.user_id)).size;
+      const submissionsToday = allSubmissions.filter(s => s.submitted_at >= today).length;
+      const submissionsThisWeek = allSubmissions.filter(s => s.submitted_at >= weekAgo).length;
+      const submissionsThisMonth = allSubmissions.filter(s => s.submitted_at >= monthAgo).length;
+
+      const summary: ReportsSummary = {
+        totalSubmissions,
+        uniqueForms,
+        uniqueUsers,
+        submissionsToday,
+        submissionsThisWeek,
+        submissionsThisMonth
+      };
+
+      console.log('✅ ReportsService: Firebase summary generated:', summary);
+      return summary;
+    } catch (error) {
+      console.error('❌ ReportsService: Error generating Firebase summary:', error);
       throw error;
     }
   }
@@ -345,29 +652,39 @@ class ReportsService {
    */
   static async getFormIdentifiers(): Promise<string[]> {
     try {
+      await this.initializeFirebaseIfNeeded();
+
       console.log('ReportsService: Fetching form identifiers...');
 
-      const workingTable = await this.findWorkingDataSource();
+      if (this.useFirebase) {
+        const submissions = await this.getFormSubmissionsFromFirebase();
+        const uniqueIdentifiers = Array.from(
+          new Set(submissions.map(s => s.form_identifier))
+        ).sort();
+        return uniqueIdentifiers;
+      } else {
+        const workingTable = await this.findWorkingDataSource();
 
-      const { data, error } = await supabase
-        .from(workingTable)
-        .select('form_identifier');
+        const { data, error } = await supabase
+          .from(workingTable)
+          .select('form_identifier');
 
-      if (error) {
-        console.error('ReportsService: Error fetching form identifiers:', error);
-        throw error;
+        if (error) {
+          console.error('ReportsService: Error fetching form identifiers:', error);
+          throw error;
+        }
+
+        const uniqueIdentifiers = Array.from(
+          new Set(data?.map((item: any) => item.form_identifier as string) || [])
+        ).sort() as string[];
+
+        console.log('ReportsService: Found', uniqueIdentifiers.length, 'unique form identifiers:', uniqueIdentifiers);
+        return uniqueIdentifiers;
       }
-
-      const uniqueIdentifiers = Array.from(
-        new Set(data?.map((item: any) => item.form_identifier as string) || [])
-      ).sort() as string[];
-
-      console.log('ReportsService: Found', uniqueIdentifiers.length, 'unique form identifiers:', uniqueIdentifiers);
-      return uniqueIdentifiers;
 
     } catch (error) {
       console.error('ReportsService: Error fetching form identifiers:', error);
-      throw error;
+      return [];
     }
   }
 

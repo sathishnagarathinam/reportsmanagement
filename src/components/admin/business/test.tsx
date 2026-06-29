@@ -40,8 +40,10 @@ interface PageConfig {
   title: string;
   fields: FormField[];
   lastUpdated: string;
+  createdAt?: string; // Timestamp of when config was first created
+  ownerId?: string; // Firebase UID of the user who owns this configuration
   isPage?: boolean; // New field
-  pageId?: string; 
+  pageId?: string;
 }
 
 interface Category {
@@ -168,7 +170,7 @@ const PageBuilder: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const docRef = doc(db, 'pages', cardId);
+      const docRef = doc(db, 'page_configurations', cardId);
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
         const data = docSnap.data() as PageConfig;
@@ -342,7 +344,7 @@ const PageBuilder: React.FC = () => {
 
       for (const id of idsToDelete) {
         batch.delete(doc(db, 'categories', id));
-        batch.delete(doc(db, 'pages', id)); // Also delete associated page configurations
+        batch.delete(doc(db, 'page_configurations', id)); // Also delete associated page configurations
       }
       await batch.commit();
       await fetchCategories();
@@ -477,7 +479,7 @@ const PageBuilder: React.FC = () => {
        
       };
       
-      await setDoc(doc(db, 'pages', selectedCard), updatedPageConfig);
+      await setDoc(doc(db, 'page_configurations', selectedCard), updatedPageConfig);
       console.log('Page configuration saved successfully to Firestore.'); // Added log
       setPageConfig(updatedPageConfig); // Update local state
       setSuccess('Page configuration saved successfully!');

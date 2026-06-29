@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FormSubmissionWithUserData, ReportsFilter } from '../../services/reportsService';
-import { supabase } from '../../config/supabaseClient';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 
 interface SubmissionsSummaryCardsProps {
   submissions: FormSubmissionWithUserData[];
@@ -49,16 +50,33 @@ const SubmissionsSummaryCards: React.FC<SubmissionsSummaryCardsProps> = ({
     try {
       // Get completed offices from current submissions
       const completedOffices = getUniqueOfficesFromSubmissions(submissions);
-      
+
       // Get target offices from page_configurations
       const targetOffices = await getTargetOfficesForForm(filters.formIdentifier);
-      
-      // Calculate pending offices
-      const pendingOffices = targetOffices.filter(office => 
-        !completedOffices.some(completed => 
-          completed.toLowerCase().trim() === office.toLowerCase().trim()
-        )
-      );
+
+      // Build a lookup map for facility IDs that may be stored in selectedOffices
+      const officeNameByFacilityId = await getOfficeNameByFacilityIdMap(targetOffices);
+
+      // Calculate pending offices with cross-matching
+      const pendingOffices = targetOffices.filter(office => {
+        const normalizedOffice = office.toLowerCase().trim();
+        const normalizedCompletedOffices = completedOffices.map(o => o.toLowerCase().trim());
+
+        // Direct match
+        if (normalizedCompletedOffices.includes(normalizedOffice)) return false;
+
+        // Facility ID match: target is a facility ID, completed is an office name
+        const officeNameForFacilityId = officeNameByFacilityId[normalizedOffice];
+        if (officeNameForFacilityId &&
+            normalizedCompletedOffices.includes(officeNameForFacilityId.toLowerCase().trim())) {
+          return false;
+        }
+
+        // Substring match for partial names
+        return !normalizedCompletedOffices.some(completed =>
+          completed.includes(normalizedOffice) || normalizedOffice.includes(completed)
+        );
+      });
 
       setSummary({
         completedOffices,
@@ -84,26 +102,59 @@ const SubmissionsSummaryCards: React.FC<SubmissionsSummaryCardsProps> = ({
     }
   };
 
+  const getOfficeNameByFacilityIdMap = async (targetOffices: string[]): Promise<Record<string, string>> => {
+    const result: Record<string, string> = {};
+    try {
+      // Identify values that look like facility IDs rather than office names
+      const facilityIds = targetOffices.filter(office => {
+        const value = office.toLowerCase().trim();
+        return value.length > 0 && !value.includes('office') && !value.includes(' so') && !value.includes(' bo') && !value.includes(' ro') && !value.includes(' ho');
+      });
+
+      for (const facilityId of facilityIds) {
+        try {
+          const officeDoc = await getDoc(doc(db, 'offices', facilityId));
+          if (officeDoc.exists()) {
+            const data = officeDoc.data();
+            const officeName = data?.officeName || data?.office_name || data?.name || '';
+            if (officeName) {
+              result[facilityId.toLowerCase().trim()] = officeName.trim();
+            }
+          }
+        } catch (e) {
+          // Ignore per-document errors
+        }
+      }
+    } catch (error) {
+      console.error('Error building facility ID map:', error);
+    }
+    return result;
+  };
+
   const getUniqueOfficesFromSubmissions = (submissions: FormSubmissionWithUserData[]): string[] => {
     const officeSet = new Set<string>();
-    
+
     submissions.forEach(submission => {
-      // Look for office name in submission_data
+      // Primary: use user_office if it's set and valid (this is the most reliable source)
+      if (submission.user_office &&
+          submission.user_office.trim() !== '' &&
+          submission.user_office !== 'Unknown Office') {
+        officeSet.add(submission.user_office.trim());
+        return; // Move to next submission
+      }
+
+      // Fallback: look for office name in submission_data
       if (submission.submission_data) {
         for (const [key, value] of Object.entries(submission.submission_data)) {
-          if (typeof value === 'string' && (
+          if (typeof value === 'string' && value.trim() !== '' && (
             value.includes(' BO') || value.includes(' SO') || value.includes(' RO') ||
-            value.includes(' HO') || value.includes(' DO') || value.includes('Office')
+            value.includes(' HO') || value.includes(' DO') || value.includes('Office') ||
+            value.includes('office') || value.includes('Branch') || value.includes('branch')
           )) {
             officeSet.add(value.trim());
             break; // Found office name, move to next submission
           }
         }
-      }
-      
-      // Fallback to user_office if no office found in submission_data
-      if (submission.user_office && submission.user_office !== 'Unknown Office') {
-        officeSet.add(submission.user_office.trim());
       }
     });
 
@@ -113,27 +164,20 @@ const SubmissionsSummaryCards: React.FC<SubmissionsSummaryCardsProps> = ({
   const getTargetOfficesForForm = async (formIdentifier: string): Promise<string[]> => {
     try {
       console.log('🎯 Fetching target offices for form:', formIdentifier);
-      
-      const { data, error } = await supabase
-        .from('page_configurations')
-        .select('selected_offices')
-        .eq('id', formIdentifier)
-        .single();
 
-      if (error) {
-        console.error('Error fetching target offices:', error);
+      const docRef = doc(db, 'page_configurations', formIdentifier);
+      const docSnap = await getDoc(docRef);
+
+      if (!docSnap.exists()) {
+        console.log('No page configuration found for form:', formIdentifier);
         return [];
       }
 
-      if (!data?.selected_offices) {
-        console.log('No selected_offices found for form:', formIdentifier);
-        return [];
-      }
+      const data = docSnap.data();
+      const selectedOffices = data?.selectedOffices || data?.selected_offices || [];
 
-      // selected_offices should be an array of office names
-      const targetOffices = Array.isArray(data.selected_offices) 
-        ? data.selected_offices 
-        : [];
+      // selectedOffices should be an array of office names (or facility IDs)
+      const targetOffices = Array.isArray(selectedOffices) ? selectedOffices : [];
 
       console.log('🎯 Target offices for form:', targetOffices);
       return targetOffices;

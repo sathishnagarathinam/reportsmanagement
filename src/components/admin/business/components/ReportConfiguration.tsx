@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { REPORT_FREQUENCIES } from '../types/PageBuilderTypes';
-import { useOfficeDataSimple as useOfficeData } from '../hooks/useOfficeDataSimple';
+import { useFirebaseOfficeData } from '../hooks/useFirebaseOfficeData';
 import CheckboxDropdown from './CheckboxDropdown';
 import { getUniqueOfficeTypes, filterOfficesByType, extractOfficeType } from '../utils/officeTypeUtils';
 
@@ -10,11 +10,13 @@ interface ReportConfigurationProps {
   selectedOffices: string[];
   selectedOfficeTypes?: string[];
   selectedFrequency: string;
+  fromEffectDate?: string;
   onRegionsChange: (regions: string[]) => void;
   onDivisionsChange: (divisions: string[]) => void;
   onOfficesChange: (offices: string[]) => void;
   onOfficeTypesChange?: (officeTypes: string[]) => void;
   onFrequencyChange: (frequency: string) => void;
+  onFromEffectDateChange?: (date: string) => void;
 }
 
 const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
@@ -23,14 +25,16 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
   selectedOffices,
   selectedOfficeTypes = [],
   selectedFrequency,
+  fromEffectDate,
   onRegionsChange,
   onDivisionsChange,
   onOfficesChange,
   onOfficeTypesChange = () => {},
   onFrequencyChange,
+  onFromEffectDateChange = () => {},
 }) => {
-  // Use custom hook to fetch office data from Supabase
-  const { regions, divisions, offices, loading, error, refetch } = useOfficeData();
+  // Use custom hook to fetch office data from Firebase
+  const { regions, divisions, offices, loading, error, refetch } = useFirebaseOfficeData();
 
   // Filter divisions based on selected regions
   const selectedRegionNames = selectedRegions.map(regionId =>
@@ -239,6 +243,27 @@ const ReportConfiguration: React.FC<ReportConfigurationProps> = ({
                     Report frequency is required.
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+
+          <div className="row mt-3">
+            <div className="col-md-6">
+              <div className="form-group">
+                <label htmlFor="from-effect-date" className="form-label">
+                  From Effect Date
+                </label>
+                <input
+                  id="from-effect-date"
+                  type="date"
+                  className="form-control"
+                  value={fromEffectDate ?? ''}
+                  onChange={(e) => onFromEffectDateChange(e.target.value)}
+                  disabled={loading}
+                />
+                <small className="form-text text-muted">
+                  Reports become pending from this date. If left blank, the form creation date is used.
+                </small>
               </div>
             </div>
           </div>

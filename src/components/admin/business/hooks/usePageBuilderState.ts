@@ -36,6 +36,7 @@ export const usePageBuilderState = () => {
   const [selectedOffices, setSelectedOffices] = useState<string[]>([]);
   const [selectedOfficeTypes, setSelectedOfficeTypes] = useState<string[]>([]);
   const [selectedFrequency, setSelectedFrequency] = useState<string>('');
+  const [fromEffectDate, setFromEffectDate] = useState<string>('');
 
   return {
     // State values
@@ -64,6 +65,7 @@ export const usePageBuilderState = () => {
     selectedOffices,
     selectedOfficeTypes,
     selectedFrequency,
+    fromEffectDate,
 
     // State setters
     setCategories,
@@ -91,5 +93,6 @@ export const usePageBuilderState = () => {
     setSelectedOffices,
     setSelectedOfficeTypes,
     setSelectedFrequency,
+    setFromEffectDate,
   };
 };

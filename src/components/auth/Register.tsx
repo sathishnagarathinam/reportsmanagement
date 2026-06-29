@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth'; // Added User type
+import { createUserWithEmailAndPassword, User } from 'firebase/auth'; // Added User type
 import { auth } from '../../config/firebase';
 import { supabase } from '../../config/supabaseClient';
 import { doc, setDoc } from 'firebase/firestore'; // Import for Firestore
@@ -209,38 +209,7 @@ const Register: React.FC = () => {
     }
   };
 
-  const handleGoogleRegister = async () => {
-    setError('');
-    setIsRegistering(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
 
-      // For Google Sign-In, you might need a subsequent step to collect
-      // employeeId, office, division, designation, mobileNumber if not available from Google.
-      // Or, if this is the first time they sign in with Google, you might redirect them
-      // to a profile completion page.
-      // For now, let's assume we'd try to create a basic profile or check if one exists.
-
-      // Example: Check if a profile exists, if not, create a basic one or prompt for more info.
-      // This part needs careful consideration based on your app's flow.
-      // For simplicity, we'll log and suggest manual data entry or a separate profile page.
-      console.log('Google sign-in successful for user:', user.displayName, user.email, user.uid);
-      alert('Google registration successful! Please complete your profile if prompted.');
-      // TODO: Implement profile creation/completion for Google users.
-      // This might involve checking Firestore for an existing profile and then:
-      // 1. If profile exists, proceed.
-      // 2. If not, redirect to a form to collect employeeId, officeId, divisionName, etc.
-      //    and then call setDoc(doc(db, 'users', user.uid), profileData);
-
-    } catch (err: any) {
-      setError('Failed to register with Google. Please try again.');
-      console.error(err);
-    } finally {
-      setIsRegistering(false);
-    }
-  };
 
   // Fetch offices from Supabase using enhanced OfficeService
   useEffect(() => {
@@ -286,9 +255,6 @@ const Register: React.FC = () => {
   return (
     <Container component="main" maxWidth="xs">
       <Paper elevation={6} sx={{ padding: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', mt: 8 }}>
-        <Box sx={{ mb: 2 }}>
-          <img src="/Indiapost_Logo.png" alt="India Post Logo" style={{ width: '100px' }} />
-        </Box>
         <Typography component="h1" variant="h5">
           Create Account
         </Typography>
@@ -459,20 +425,6 @@ const Register: React.FC = () => {
         </Box>
 
         <Typography variant="body2" sx={{ mt: 2 }}>
-          Or register with
-        </Typography>
-        <Button
-          type="button"
-          fullWidth
-          variant="outlined"
-          sx={{ mt: 1, mb: 2 }}
-          onClick={handleGoogleRegister}
-          disabled={isRegistering}
-        >
-          {isRegistering ? <CircularProgress size={24} color="inherit" /> : 'Continue with Google'}
-        </Button>
-
-        <Typography variant="body2">
           Already have an account? <Link to="/login">Sign In</Link>
         </Typography>
       </Paper>
