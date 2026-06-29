@@ -1,4 +1,7 @@
 {
+  "buildCommand": "cd web-app && npm install && npm run build",
+  "outputDirectory": "web-app/build",
+  "installCommand": "npm install --legacy-peer-deps",
   "rewrites": [
     {
       "source": "/(.*)",
