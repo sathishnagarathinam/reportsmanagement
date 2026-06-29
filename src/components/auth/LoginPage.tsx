@@ -64,13 +64,6 @@ const LoginPage: React.FC = () => {
     <Container maxWidth="sm">
       <Paper elevation={3} sx={{ mt: 8, p: 4 }}>
         <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <Box sx={{ mb: 3 }}>
-            <img 
-              src="/Indiapost_Logo.png" 
-              alt="India Post Logo" 
-              style={{ width: '150px', height: 'auto' }}
-            />
-          </Box>
           <Typography component="h1" variant="h5" gutterBottom>
             {isResettingPassword ? 'Reset Password' : 'Login to Reports Management System'}
           </Typography>
