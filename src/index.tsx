@@ -39,7 +39,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
 }
 
 // Debug logging
-console.log('🚀 App initialization started');
+console.log('🚀 App initialization started - v1.1.1');
 console.log('📱 Environment:', process.env.NODE_ENV);
 console.log('🔑 Firebase API Key available:', !!process.env.REACT_APP_FIREBASE_API_KEY);
 
