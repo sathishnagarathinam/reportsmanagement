@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { db } from '../../../../config/firebaseClient';
+import { db } from '../../../../config/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { FormField, PageConfig, Category } from '../types/PageBuilderTypes';
 import { FormField as DynamicFormField, FormConfig as DynamicFormConfig, FormFieldOption } from '../../../shared/DynamicForm';

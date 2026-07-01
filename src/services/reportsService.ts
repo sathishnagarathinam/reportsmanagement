@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabaseClient';
-import { db } from '../config/firebaseClient';
+import { db } from '../config/firebase';
 import { collection, getDocs, query as firestoreQuery, where, orderBy, limit, QueryConstraint, QuerySnapshot, DocumentData, Timestamp } from 'firebase/firestore';
 
 export interface FormSubmission {

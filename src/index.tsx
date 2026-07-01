@@ -26,10 +26,27 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
       return (
         <div style={{ padding: '20px', textAlign: 'center' }}>
           <h1>Reports Management System</h1>
-          <p>Loading application...</p>
-          <p style={{ color: '#666', fontSize: '14px' }}>
-            If this message persists, please check your internet connection.
+          <p>Something went wrong while loading the application.</p>
+          <p style={{ color: '#d32f2f', fontSize: '14px', marginTop: '10px' }}>
+            Error: {this.state.error?.message || 'Unknown error'}
           </p>
+          <p style={{ color: '#666', fontSize: '12px', marginTop: '10px' }}>
+            Please check the browser console (F12) for more details.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: '20px',
+              padding: '10px 20px',
+              backgroundColor: '#007bff',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer'
+            }}
+          >
+            Reload Page
+          </button>
         </div>
       );
     }

@@ -1,4 +1,4 @@
-import { db, auth } from '../../../../config/firebaseClient';
+import { db, auth } from '../../../../config/firebase';
 import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, orderBy, where } from 'firebase/firestore';
 import { PageConfig } from '../types/PageBuilderTypes';
 
