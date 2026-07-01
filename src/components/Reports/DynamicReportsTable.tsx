@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { FormSubmissionWithUserData } from '../../services/reportsService';
 import FormConfigService from '../../services/formConfigService';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 
 interface DynamicReportsTableProps {
   submissions: FormSubmissionWithUserData[];
   loading: boolean;
   onRefresh: () => void;
+  isAdmin?: boolean;
 }
 
 interface TableColumn {
@@ -19,7 +20,8 @@ interface TableColumn {
 const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
   submissions,
   loading,
-  onRefresh
+  onRefresh,
+  isAdmin = false
 }) => {
   const [columns, setColumns] = useState<TableColumn[]>([]);
   const [processedData, setProcessedData] = useState<Array<Record<string, any>>>([]);
@@ -28,6 +30,9 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
   const [editedData, setEditedData] = useState<Record<string, any>>({});
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Helper function to check if a value is numeric
   const isNumericValue = (value: any): boolean => {
@@ -107,6 +112,54 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
     }));
   };
 
+  // Row selection handlers (admin only)
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      const allIds = new Set(processedData.map(row => row.id as string));
+      setSelectedIds(allIds);
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleSelectRow = (id: string) => {
+    setSelectedIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(id)) {
+        newSet.delete(id);
+      } else {
+        newSet.add(id);
+      }
+      return newSet;
+    });
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!isAdmin || selectedIds.size === 0) return;
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete ${selectedIds.size} selected submission(s)? This action cannot be undone.`
+    );
+    if (!confirmDelete) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const deletePromises = Array.from(selectedIds).map(id =>
+        deleteDoc(doc(db, 'form_submissions', id))
+      );
+      await Promise.all(deletePromises);
+      setSelectedIds(new Set());
+      onRefresh();
+    } catch (error) {
+      console.error('Error deleting submissions:', error);
+      setDeleteError('Failed to delete selected submissions. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   // Calculate aggregate values for a column
   const calculateColumnAggregate = (columnKey: string, rows: Array<Record<string, any>>): {
     sum: number;
@@ -141,6 +194,11 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
 
   useEffect(() => {
     buildDynamicColumns();
+  }, [submissions]);
+
+  // Clear selection when data changes to avoid stale selected IDs
+  useEffect(() => {
+    setSelectedIds(new Set());
   }, [submissions]);
 
   const buildDynamicColumns = async () => {
@@ -499,9 +557,83 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
 
   return (
     <div style={{ overflowX: 'auto' }}>
+      {isAdmin && selectedIds.size > 0 && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          backgroundColor: '#fff3cd',
+          borderBottom: '1px solid #dee2e6',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center'
+        }}>
+          <span style={{ fontWeight: '600', color: '#856404' }}>
+            {selectedIds.size} row{selectedIds.size === 1 ? '' : 's'} selected
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              style={{
+                padding: '0.375rem 0.75rem',
+                backgroundColor: '#dc3545',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: deleting ? 'not-allowed' : 'pointer',
+                opacity: deleting ? 0.7 : 1
+              }}
+              onClick={handleDeleteSelected}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : '🗑️ Delete Selected'}
+            </button>
+            <button
+              style={{
+                padding: '0.375rem 0.75rem',
+                backgroundColor: '#6c757d',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer'
+              }}
+              onClick={() => setSelectedIds(new Set())}
+              disabled={deleting}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+      {deleteError && (
+        <div style={{
+          padding: '0.75rem 1rem',
+          backgroundColor: '#f8d7da',
+          color: '#721c24',
+          borderBottom: '1px solid #f5c6cb'
+        }}>
+          ⚠️ {deleteError}
+        </div>
+      )}
       <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '800px' }}>
         <thead>
           <tr style={{ backgroundColor: '#f8f9fa' }}>
+            {isAdmin && (
+              <th
+                style={{
+                  padding: '1rem 0.75rem',
+                  textAlign: 'center',
+                  fontWeight: '600',
+                  borderBottom: '2px solid #dee2e6',
+                  whiteSpace: 'nowrap',
+                  width: '50px'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedIds.size === processedData.length && processedData.length > 0}
+                  onChange={handleSelectAll}
+                  title="Select all rows"
+                />
+              </th>
+            )}
             {columns.map((column) => (
               <th
                 key={column.key}
@@ -533,6 +665,23 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
         <tbody>
           {processedData.map((row, index) => (
             <tr key={`${row.id}-${index}`} style={{ borderBottom: '1px solid #eee' }}>
+              {isAdmin && (
+                <td
+                  style={{
+                    padding: '0.75rem',
+                    verticalAlign: 'top',
+                    textAlign: 'center',
+                    width: '50px'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.has(row.id as string)}
+                    onChange={() => handleSelectRow(row.id as string)}
+                    title="Select row"
+                  />
+                </td>
+              )}
               {columns.map((column) => (
                 <td
                   key={column.key}
@@ -590,8 +739,21 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
         </tbody>
         <tfoot style={{ backgroundColor: '#f8f9fa', borderTop: '2px solid #dee2e6' }}>
           <tr style={{ borderTop: '2px solid #dee2e6' }}>
+            {isAdmin && (
+              <td
+                style={{
+                  padding: '0.75rem',
+                  fontWeight: '600',
+                  fontSize: '0.85rem',
+                  color: '#333',
+                  borderTop: '2px solid #dee2e6',
+                  width: '50px'
+                }}
+              />
+            )}
             {columns.map((column) => {
               const aggregate = calculateColumnAggregate(column.key, processedData);
+              const isFirstColumn = column.type === 'form_type' || column.type === 'date';
               return (
                 <td
                   key={`footer-${column.key}`}
@@ -605,7 +767,11 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
                     minWidth: column.type === 'field' ? '120px' : 'auto'
                   }}
                 >
-                  {aggregate.isNumeric ? (
+                  {isFirstColumn ? (
+                    <span>
+                      <strong>Count:</strong> {aggregate.count}
+                    </span>
+                  ) : aggregate.isNumeric ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                       <span>
                         <strong>Sum:</strong> {aggregate.sum.toLocaleString()}
@@ -614,7 +780,7 @@ const DynamicReportsTable: React.FC<DynamicReportsTableProps> = ({
                         <strong>Avg:</strong> {aggregate.average.toLocaleString(undefined, { maximumFractionDigits: 2 })}
                       </span>
                       <span>
-                        <strong>Count:</strong> {aggregate.count}
+                        <strong>Fill %:</strong> {processedData.length > 0 ? ((aggregate.count / processedData.length) * 100).toFixed(1) : 0}%
                       </span>
                     </div>
                   ) : (

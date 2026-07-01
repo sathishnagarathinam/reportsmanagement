@@ -26,7 +26,8 @@ const SubmissionsSummaryCards: React.FC<SubmissionsSummaryCardsProps> = ({
 }) => {
   const [summary, setSummary] = useState<OfficeSubmissionSummary | null>(null);
   const [summaryLoading, setSummaryLoading] = useState(false);
-  const [expandedCard, setExpandedCard] = useState<'completed' | 'pending' | null>(null);
+  // Default to showing pending offices list so users can see Not Completed offices immediately
+  const [expandedCard, setExpandedCard] = useState<'completed' | 'pending' | null>('pending');
 
   useEffect(() => {
     calculateOfficeSummary();

@@ -651,6 +651,7 @@ const Reports: React.FC = () => {
               submissions={submissions}
               loading={loading}
               onRefresh={fetchSubmissions}
+              isAdmin={userData?.role === 'admin' || userData?.role === 'master_admin'}
             />
           ) : (
             <SubmissionsSummaryCards
