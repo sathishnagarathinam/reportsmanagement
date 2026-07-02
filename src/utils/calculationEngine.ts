@@ -66,14 +66,79 @@ export class CalculationEngine {
   }
 
   /**
+   * Calculate the raw numeric value for a calculated field (without formatting)
+   * Used when a calculated field is used as a source for another calculation
+   */
+  static calculateRawValue(
+    field: CalculationField,
+    formData: Record<string, any>,
+    allFields: any[] = []
+  ): number {
+    try {
+      const sourceValues = this.getSourceValues(field.sourceFields, formData, allFields);
+      let result: number;
+
+      switch (field.calculationType) {
+        case 'sum':
+          result = this.sum(sourceValues);
+          break;
+        case 'subtract':
+          result = this.subtract(sourceValues);
+          break;
+        case 'multiply':
+          result = this.multiply(sourceValues);
+          break;
+        case 'divide':
+          result = this.divide(sourceValues);
+          break;
+        case 'average':
+          result = this.average(sourceValues);
+          break;
+        case 'percentage':
+          result = this.percentage(sourceValues);
+          break;
+        case 'custom':
+          result = this.customCalculation(field.customFormula || '', formData, allFields);
+          break;
+        default:
+          result = 0;
+      }
+
+      // Handle NaN and Infinity
+      if (isNaN(result) || !isFinite(result)) {
+        result = 0;
+      }
+
+      return result;
+    } catch (error) {
+      console.error('Calculation error:', error);
+      return 0;
+    }
+  }
+
+  /**
    * Get numeric values from source fields using field labels
    */
   private static getSourceValues(sourceFields: string[], formData: Record<string, any>, allFields: any[] = []): number[] {
     return sourceFields
       .map(fieldLabel => {
-        // Find field ID by label
+        // Find field by label
         const field = allFields.find(f => f.label === fieldLabel);
         const fieldId = field ? field.id : fieldLabel; // Fallback to label if field not found
+
+        // Check if this is a calculated field - if so, recalculate the raw value
+        if (field && field.type === 'calculated') {
+          const calcField: CalculationField = {
+            id: field.id,
+            calculationType: field.calculationType || 'sum',
+            sourceFields: field.sourceFields || [],
+            customFormula: field.customFormula,
+            decimalPlaces: field.decimalPlaces,
+            prefix: field.prefix,
+            suffix: field.suffix
+          };
+          return this.calculateRawValue(calcField, formData, allFields);
+        }
 
         const value = formData[fieldId];
         const numValue = parseFloat(value);
@@ -156,9 +221,29 @@ export class CalculationEngine {
         const field = allFields.find(f => f.label === fieldLabel);
         const fieldId = field ? field.id : fieldLabel;
 
-        const value = formData[fieldId];
-        const numValue = parseFloat(value) || 0;
-        processedFormula = processedFormula.replace(match, numValue.toString());
+        let numValue: number;
+
+        // Check if this is a calculated field - if so, recalculate the raw value
+        if (field && field.type === 'calculated') {
+          const calcField: CalculationField = {
+            id: field.id,
+            calculationType: field.calculationType || 'sum',
+            sourceFields: field.sourceFields || [],
+            customFormula: field.customFormula,
+            decimalPlaces: field.decimalPlaces,
+            prefix: field.prefix,
+            suffix: field.suffix
+          };
+          numValue = this.calculateRawValue(calcField, formData, allFields);
+        } else {
+          const value = formData[fieldId];
+          numValue = parseFloat(value) || 0;
+        }
+
+        // Escape regex special chars in the label and replace ALL occurrences
+        // (a plain string .replace() only swaps the first match).
+        const escapedMatch = match.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        processedFormula = processedFormula.replace(new RegExp(escapedMatch, 'g'), numValue.toString());
       }
 
       // Evaluate the formula safely (basic math operations only)
@@ -223,16 +308,39 @@ export class CalculationEngine {
 
   /**
    * Update all calculated fields in form data
+   * This method recalculates multiple times to handle chains of calculated fields
+   * (e.g., Field A depends on Field B which depends on regular fields)
    */
   static updateCalculatedFields(
     fields: any[],
     formData: Record<string, any>
   ): Record<string, any> {
     const calculatedFields = this.getCalculatedFields(fields);
-    const updatedFormData = { ...formData };
+    if (calculatedFields.length === 0) {
+      return formData;
+    }
 
-    for (const calcField of calculatedFields) {
-      updatedFormData[calcField.id] = this.calculateValue(calcField, formData, fields);
+    let updatedFormData = { ...formData };
+
+    // Recalculate multiple times to handle dependencies between calculated fields
+    // Use calculatedFields.length + 1 iterations to ensure all dependencies are resolved
+    const maxIterations = calculatedFields.length + 1;
+
+    for (let iteration = 0; iteration < maxIterations; iteration++) {
+      let hasChanges = false;
+
+      for (const calcField of calculatedFields) {
+        const newValue = this.calculateValue(calcField, updatedFormData, fields);
+        if (newValue !== updatedFormData[calcField.id]) {
+          updatedFormData[calcField.id] = newValue;
+          hasChanges = true;
+        }
+      }
+
+      // If no changes in this iteration, we can stop early
+      if (!hasChanges) {
+        break;
+      }
     }
 
     return updatedFormData;
@@ -244,7 +352,9 @@ export class CalculationEngine {
   static validateCalculatedField(field: CalculationField): string[] {
     const errors: string[] = [];
 
-    if (!field.sourceFields || field.sourceFields.length === 0) {
+    // Source fields aren't required for 'custom' formulas — field references
+    // are embedded directly in the formula as [Field Label] and extracted there.
+    if (field.calculationType !== 'custom' && (!field.sourceFields || field.sourceFields.length === 0)) {
       errors.push('Source fields are required for calculated fields');
     }
 
