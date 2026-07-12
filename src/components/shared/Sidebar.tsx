@@ -38,30 +38,30 @@ const Sidebar: React.FC<SidebarProps> = ({ userData }) => {
       </div>
       
       <nav className="nav-menu">
-        {location.pathname !== '/' && (
-          <a href="#" className="nav-item back" onClick={() => handleNavigation('/')}>
-            {React.createElement(FaArrowLeft as React.ComponentType<any>)} <span>back to dashboard</span>
+        {location.pathname !== '/' && location.pathname !== '/admin' && (
+          <a href="#" className="nav-item back" onClick={(e) => { e.preventDefault(); navigate(-1); }}>
+            {React.createElement(FaArrowLeft as React.ComponentType<any>)} <span>back</span>
           </a>
         )}
-        <a href="#" className={`nav-item ${isActive('/') ? 'active' : ''}`} onClick={() => handleNavigation('/')}>
+        <a href="#" className={`nav-item ${isActive('/') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/'); }}>
           {React.createElement(FaHome as React.ComponentType<any>)} <span>home</span>
         </a>
-        <a href="#" className={`nav-item ${isActive('/data-entry') ? 'active' : ''}`} onClick={() => handleNavigation('/data-entry')}>
+        <a href="#" className={`nav-item ${isActive('/data-entry') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/data-entry'); }}>
           {React.createElement(FaFolder as React.ComponentType<any>)} <span>data entry</span>
         </a>
-        <a href="#" className={`nav-item ${isActive('/reports') ? 'active' : ''}`} onClick={() => handleNavigation('/reports')}>
+        <a href="#" className={`nav-item ${isActive('/reports') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/reports'); }}>
           {React.createElement(FaEnvelope as React.ComponentType<any>)} <span>reports</span>
         </a>
-        <a href="#" className={`nav-item ${isActive('/profile') ? 'active' : ''}`} onClick={() => handleNavigation('/profile')}>
+        <a href="#" className={`nav-item ${isActive('/profile') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/profile'); }}>
           {React.createElement(FaUser as React.ComponentType<any>)} <span>profile</span>
         </a>
         {userData?.role === 'master_admin' && (
-          <a href="#" className={`nav-item ${isActive('/master-admin') ? 'active' : ''}`} onClick={() => handleNavigation('/master-admin')}>
+          <a href="#" className={`nav-item ${isActive('/master-admin') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/master-admin'); }}>
             {React.createElement(FaUsersCog as React.ComponentType<any>)} <span>master admin</span>
           </a>
         )}
         {userData?.role === 'admin' && (
-          <a href="#" className={`nav-item ${isActive('/admin') ? 'active' : ''}`} onClick={() => handleNavigation('/admin')}>
+          <a href="#" className={`nav-item ${isActive('/admin') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/admin'); }}>
             {React.createElement(FaUsersCog as React.ComponentType<any>)} <span>admin</span>
           </a>
         )}

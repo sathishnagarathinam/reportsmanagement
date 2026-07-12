@@ -1,5 +1,5 @@
-import React from 'react';
-import { FaTrash, FaArrowUp, FaArrowDown } from 'react-icons/fa';
+import React, { useRef, useState } from 'react';
+import { FaTrash, FaArrowUp, FaArrowDown, FaFileExcel, FaUpload } from 'react-icons/fa';
 import { FormField } from '../types/PageBuilderTypes';
 
 interface FieldConfigItemProps {
@@ -25,6 +25,9 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
   isFirst,
   isLast,
 }) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
   const handleOptionChange = (optIndex: number, value: string, key: 'label' | 'value') => {
     const newOptions = [...(field.options || [])];
     newOptions[optIndex] = { ...newOptions[optIndex], [key]: value };
@@ -39,6 +42,140 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
   const removeOption = (optIndex: number) => {
     const newOptions = field.options?.filter((_, i) => i !== optIndex);
     onUpdate(index, { ...field, options: newOptions });
+  };
+
+  // Handle Excel file upload for bulk options import
+  const handleExcelUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    setUploadError(null);
+    
+    if (!file) return;
+    
+    // Validate file type
+    const validTypes = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'text/csv'];
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    if (!validTypes.includes(file.type) && !['xlsx', 'xls', 'csv'].includes(fileExtension || '')) {
+      setUploadError('Please upload a valid Excel file (.xlsx, .xls) or CSV file (.csv)');
+      return;
+    }
+    
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        let parsedOptions: { label: string; value: string }[] = [];
+        
+        if (fileExtension === 'csv' || file.type === 'text/csv') {
+          // Parse CSV
+          const csvText = data as string;
+          const lines = csvText.split('\n').filter(line => line.trim());
+          
+          // Check if first row is header
+          const firstRow = lines[0].toLowerCase();
+          const hasHeader = firstRow.includes('label') || firstRow.includes('value');
+          const startIndex = hasHeader ? 1 : 0;
+          
+          for (let i = startIndex; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+            
+            // Handle CSV parsing with quotes
+            const parts: string[] = [];
+            let current = '';
+            let inQuotes = false;
+            
+            for (const char of line) {
+              if (char === '"') {
+                inQuotes = !inQuotes;
+              } else if (char === ',' && !inQuotes) {
+                parts.push(current.trim());
+                current = '';
+              } else {
+                current += char;
+              }
+            }
+            parts.push(current.trim());
+            
+            if (parts.length >= 2) {
+              parsedOptions.push({
+                label: parts[0] || '',
+                value: parts[1] || parts[0] || ''
+              });
+            } else if (parts.length === 1 && parts[0]) {
+              parsedOptions.push({
+                label: parts[0],
+                value: parts[0]
+              });
+            }
+          }
+        } else {
+          // Parse Excel - using dynamic import for xlsx
+          const XLSX = require('xlsx');
+          const workbook = XLSX.read(data, { type: 'binary' });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 }) as any[][];
+          
+          if (jsonData.length === 0) {
+            setUploadError('Excel file is empty');
+            return;
+          }
+          
+          // Check if first row is header
+          const firstRow = jsonData[0].map((cell: any) => String(cell || '').toLowerCase().trim());
+          const hasHeader = firstRow.includes('label') || firstRow.includes('value');
+          const startIndex = hasHeader ? 1 : 0;
+          
+          for (let i = startIndex; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (!row || row.length === 0) continue;
+            
+            const label = String(row[0] || '').trim();
+            const value = row.length > 1 ? String(row[1] || '').trim() : label;
+            
+            if (label) {
+              parsedOptions.push({ label, value: value || label });
+            }
+          }
+        }
+        
+        if (parsedOptions.length === 0) {
+          setUploadError('No valid options found in the file. Please ensure the file has at least 2 columns: Label and Value');
+          return;
+        }
+        
+        // Merge with existing options or replace them
+        const existingOptions = field.options || [];
+        const mergedOptions = [...existingOptions, ...parsedOptions];
+        
+        onUpdate(index, { ...field, options: mergedOptions });
+        
+        // Reset file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+        
+        alert(`Successfully imported ${parsedOptions.length} options!`);
+      } catch (error) {
+        console.error('Error parsing file:', error);
+        setUploadError('Error parsing file: ' + (error instanceof Error ? error.message : 'Unknown error'));
+      }
+    };
+    
+    reader.onerror = () => {
+      setUploadError('Error reading file');
+    };
+    
+    if (fileExtension === 'csv' || file.type === 'text/csv') {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
+  };
+  
+  const triggerFileUpload = () => {
+    fileInputRef.current?.click();
   };
 
   const handleDefaultValueChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -159,7 +296,39 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
 
         {['dropdown', 'radio', 'checkbox-group'].includes(field.type) && (
           <div className="form-group field-options-config">
-            <label className="form-label">Options: </label>
+            <div className="d-flex justify-content-between align-items-center mb-2">
+              <label className="form-label mb-0">Options: </label>
+              <div>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleExcelUpload}
+                  accept=".xlsx,.xls,.csv"
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  onClick={triggerFileUpload}
+                  className="btn btn-outline-success btn-sm"
+                  title="Upload Excel/CSV with options"
+                >
+                  {React.createElement(FaFileExcel as React.ComponentType<any>)} Import from Excel
+                </button>
+              </div>
+            </div>
+            
+            {uploadError && (
+              <div className="alert alert-danger alert-sm py-2 px-3 mb-2">
+                <small>{uploadError}</small>
+              </div>
+            )}
+            
+            <div className="alert alert-info alert-sm py-2 px-3 mb-2">
+              <small>
+                <strong>Excel Format:</strong> Column A = Label, Column B = Value. First row can be headers.
+              </small>
+            </div>
+            
             {field.options?.map((opt, optIndex) => (
               <div key={optIndex} className="input-group mb-2">
                 <input
@@ -181,9 +350,20 @@ const FieldConfigItem: React.FC<FieldConfigItemProps> = ({
                 </button>
               </div>
             ))}
-            <button type="button" onClick={addOption} className="btn btn-secondary btn-sm">
-              Add Option
-            </button>
+            <div className="d-flex gap-2">
+              <button type="button" onClick={addOption} className="btn btn-secondary btn-sm">
+                Add Option
+              </button>
+              {field.options && field.options.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => onUpdate(index, { ...field, options: [] })}
+                  className="btn btn-outline-danger btn-sm"
+                >
+                  Clear All
+                </button>
+              )}
+            </div>
           </div>
         )}
 

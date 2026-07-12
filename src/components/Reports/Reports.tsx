@@ -8,6 +8,9 @@ import FormConfigService from '../../services/formConfigService';
 import SubmissionsSummaryCards from './SubmissionsSummaryCards';
 import DynamicReportsTable from './DynamicReportsTable';
 import OfficeService from '../../services/officeService';
+import ReportBuilder from './ReportBuilder';
+import SavedReportsSection from './SavedReportsSection';
+import { ReportConfiguration } from '../../services/reportMetadataService';
 import '../dashboard/Dashboard.css';
 
 // Add CSS for loading spinner animation
@@ -399,129 +402,16 @@ const Reports: React.FC = () => {
           </div>
         )}
 
-        {/* Filters */}
-        <div style={{
-          background: 'white',
-          padding: '1.5rem',
-          borderRadius: '8px',
-          marginBottom: '2rem',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-        }}>
-          <h5 style={{ marginBottom: '1rem' }}>🔍 Filters</h5>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <div style={{ flex: '1', minWidth: '200px' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Form Type</label>
-              <select
-                style={{ width: '100%', padding: '0.5rem', border: '1px solid #ddd', borderRadius: '4px' }}
-                value={filters.formIdentifier || ''}
-                onChange={(e) => handleFiltersChange({ ...filters, formIdentifier: e.target.value || undefined })}
-              >
-                <option value="">All Forms</option>
-                {formIdentifiers.map(identifier => (
-                  <option key={identifier} value={identifier}>
-                    {identifier}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ flex: '1', minWidth: '200px' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600' }}>Office Name</label>
-              <div style={{ position: 'relative' }}>
-                <select
-                  style={{
-                    width: '100%',
-                    padding: '0.5rem',
-                    border: '1px solid #ddd',
-                    borderRadius: '4px',
-                    backgroundColor: officeLoading ? '#f8f9fa' : 'white'
-                  }}
-                  value={filters.officeName || ''}
-                  onChange={(e) => handleFiltersChange({ ...filters, officeName: e.target.value || undefined })}
-                  disabled={officeLoading}
-                >
-                  <option value="">
-                    {officeLoading ? 'Loading offices...' : 'All Offices'}
-                  </option>
-                  {officeOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+        {/* Report Builder */}
+        <ReportBuilder 
+          userId={currentUser?.uid || ''}
+          onReportGenerated={(data, config) => {
+            setSubmissions(data);
+          }}
+        />
 
-                {/* Loading indicator */}
-                {officeLoading && (
-                  <div style={{
-                    position: 'absolute',
-                    right: '8px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    width: '16px',
-                    height: '16px'
-                  }}>
-                    <div style={{
-                      width: '16px',
-                      height: '16px',
-                      border: '2px solid #f3f3f3',
-                      borderTop: '2px solid #007bff',
-                      borderRadius: '50%',
-                      animation: 'spin 1s linear infinite'
-                    }}></div>
-                  </div>
-                )}
-              </div>
-
-              {/* Error message with retry button */}
-              {officeError && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#dc3545' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span>⚠️ {officeError}</span>
-                    <button
-                      type="button"
-                      style={{
-                        padding: '0.25rem 0.5rem',
-                        fontSize: '0.75rem',
-                        backgroundColor: '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                      }}
-                      onClick={fetchOfficeNames}
-                      disabled={officeLoading}
-                    >
-                      Retry
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Success indicator */}
-              {!officeLoading && !officeError && officeOptions.length > 0 && (
-                <div style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#28a745' }}>
-                  ✅ {officeOptions.length} offices loaded
-                </div>
-              )}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'end', gap: '0.5rem' }}>
-              <button
-                style={{ padding: '0.5rem 1rem', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px' }}
-                onClick={() => fetchSubmissions()}
-              >
-                🔍 Apply
-              </button>
-              <button
-                style={{ padding: '0.5rem 1rem', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px' }}
-                onClick={() => {
-                  setFilters({ limit: 50, offset: 0 });
-                  handleFiltersChange({ limit: 50, offset: 0 });
-                }}
-              >
-                ✖️ Clear
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Saved Reports Section */}
+        <SavedReportsSection userId={currentUser?.uid || ''} />
 
         {/* View Toggle Controls */}
         <div style={{

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import Modal from '../../shared/Modal';
 import './PageBuilder.css';
 
@@ -198,7 +198,8 @@ const PageBuilder: React.FC = () => {
   };
 
   // Event handlers for report configuration dropdowns - updated for arrays
-  const handleRegionsChange = (regions: string[]) => {
+  // Wrapped with useCallback to prevent infinite loops in child components
+  const handleRegionsChange = useCallback((regions: string[]) => {
     const previousRegions = state.selectedRegions;
     state.setSelectedRegions(regions);
 
@@ -208,9 +209,9 @@ const PageBuilder: React.FC = () => {
       state.setSelectedDivisions([]);
       state.setSelectedOffices([]);
     }
-  };
+  }, [state.selectedRegions]);
 
-  const handleDivisionsChange = (divisions: string[]) => {
+  const handleDivisionsChange = useCallback((divisions: string[]) => {
     const previousDivisions = state.selectedDivisions;
     state.setSelectedDivisions(divisions);
 
@@ -221,23 +222,23 @@ const PageBuilder: React.FC = () => {
       console.log('🔄 Clearing offices due to division change (not during restoration)');
       state.setSelectedOffices([]);
     }
-  };
+  }, [state.selectedDivisions]);
 
-  const handleOfficesChange = (offices: string[]) => {
+  const handleOfficesChange = useCallback((offices: string[]) => {
     state.setSelectedOffices(offices);
-  };
+  }, []);
 
-  const handleOfficeTypesChange = (officeTypes: string[]) => {
+  const handleOfficeTypesChange = useCallback((officeTypes: string[]) => {
     state.setSelectedOfficeTypes(officeTypes);
-  };
+  }, []);
 
-  const handleFrequencyChange = (frequency: string) => {
+  const handleFrequencyChange = useCallback((frequency: string) => {
     state.setSelectedFrequency(frequency);
-  };
+  }, []);
 
-  const handleFromEffectDateChange = (date: string) => {
+  const handleFromEffectDateChange = useCallback((date: string) => {
     state.setFromEffectDate(date);
-  };
+  }, []);
 
   // All card management functions are now handled by the useCardManagement hook
 
