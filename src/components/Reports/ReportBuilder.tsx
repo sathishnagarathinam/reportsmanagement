@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import ReportMetadataService, {
   ReportConfiguration,
   ReportField,
   ReportFilterConfig,
-  ReportColumnConfig,
   REPORT_TEMPLATES
 } from '../../services/reportMetadataService';
 import ReportsService, { FormSubmissionWithUserData } from '../../services/reportsService';
+import { evaluateArithmeticOperation, formatArithmeticOperation } from '../../utils/reportArithmetic';
 import './ReportBuilder.css';
 
 interface ReportBuilderProps {
@@ -202,34 +202,14 @@ const ReportBuilder: React.FC<ReportBuilderProps> = ({ userId, onReportGenerated
         
         // Process each arithmetic operation
         config.arithmeticOperations?.forEach(op => {
-          const value1 = row.submission_data?.[op.fieldId1] ?? row[op.fieldId1] ?? 0;
-          const value2 = row.submission_data?.[op.fieldId2] ?? row[op.fieldId2] ?? 0;
-          
-          const num1 = parseFloat(value1) || 0;
-          const num2 = parseFloat(value2) || 0;
-          
-          let result = 0;
-          switch (op.operation) {
-            case 'add':
-              result = num1 + num2;
-              break;
-            case 'subtract':
-              result = num1 - num2;
-              break;
-            case 'multiply':
-              result = num1 * num2;
-              break;
-            case 'divide':
-              result = num2 !== 0 ? num1 / num2 : 0;
-              break;
-          }
+          const result = evaluateArithmeticOperation(processedRow as any, op, config.fields || []);
           
           // Store the result in the row
-          processedRow[op.resultFieldName] = result;
+          (processedRow as any)[op.resultFieldName] = result;
           
           // Also store in submission_data if it exists
-          if (processedRow.submission_data) {
-            processedRow.submission_data[op.resultFieldName] = result;
+          if ((processedRow as any).submission_data) {
+            (processedRow as any).submission_data[op.resultFieldName] = result;
           }
         });
         
@@ -703,10 +683,7 @@ const ReportBuilder: React.FC<ReportBuilderProps> = ({ userId, onReportGenerated
                       <span className="op-number">{idx + 1}</span>
                       <span className="op-name">{op.name}</span>
                       <span className="op-formula">
-                        {config.fields?.find(f => f.id === op.fieldId1)?.label || op.fieldId1} 
-                        {' '}{op.operation === 'add' ? '+' : op.operation === 'subtract' ? '-' : op.operation === 'multiply' ? '×' : '÷'}{' '}
-                        {config.fields?.find(f => f.id === op.fieldId2)?.label || op.fieldId2}
-                        {' = '}{op.resultFieldName}
+                        {formatArithmeticOperation(op, config.fields || [])}
                       </span>
                       <button 
                         className="remove-op-btn"
@@ -741,11 +718,16 @@ const ReportBuilder: React.FC<ReportBuilderProps> = ({ userId, onReportGenerated
                   
                   <select id="arithOperation" className="arith-select" onChange={(e) => {
                     const op = e.target.value;
+                    const field1Select = document.getElementById('arithField1') as HTMLSelectElement;
                     const field2Select = document.getElementById('arithField2') as HTMLSelectElement;
                     const sumFieldsDiv = document.getElementById('sumFieldsDiv');
                     const customFormulaDiv = document.getElementById('customFormulaDiv');
 
-                    // Show/hide Field 2 based on operation type
+                    // Show/hide field selectors based on operation type
+                    if (field1Select) {
+                      field1Select.style.display = op === 'custom' ? 'none' : 'block';
+                    }
+
                     if (field2Select) {
                       field2Select.style.display = (op === 'sum' || op === 'custom') ? 'none' : 'block';
                     }
@@ -795,17 +777,17 @@ const ReportBuilder: React.FC<ReportBuilderProps> = ({ userId, onReportGenerated
                   {/* Custom Formula Input - Hidden by default */}
                   <div id="customFormulaDiv" style={{ display: 'none', width: '100%' }}>
                     <label style={{ fontSize: '0.875rem', color: '#666', display: 'block', marginBottom: '0.25rem' }}>
-                      Custom Formula (use [fieldName] for field values):
+                      Custom Formula (use field labels like [Biometric Update] + [Mandatory Biometric]):
                     </label>
                     <input
                       id="customFormula"
                       type="text"
-                      placeholder="e.g., [price] * [quantity] * 1.18"
+                      placeholder="e.g., [Biometric Update] + [Mandatory Biometric]"
                       className="arith-input"
                       style={{ width: '100%' }}
                     />
                     <small style={{ color: '#999', fontSize: '0.75rem' }}>
-                      Supported: +, -, *, /, (, ), [fieldName]
+                      Supported: +, -, *, /, (, ), [Field Label]
                     </small>
                   </div>
 
@@ -843,13 +825,13 @@ const ReportBuilder: React.FC<ReportBuilderProps> = ({ userId, onReportGenerated
                         fieldId1 = selectedOptions.map(opt => opt.value).join(',');
                       } else if (operation === 'custom') {
                         // Get custom formula
-                        customFormula = (document.getElementById('customFormula') as HTMLInputElement)?.value;
+                        customFormula = (document.getElementById('customFormula') as HTMLInputElement)?.value.trim();
                         if (!customFormula) {
                           alert('Please enter a custom formula');
                           return;
                         }
-                        // For custom formula, fieldId1 can be empty or used for reference
-                        fieldId1 = (document.getElementById('arithField1') as HTMLSelectElement)?.value || 'formula';
+                        fieldId1 = '';
+                        fieldId2 = '';
                       } else {
                         // Standard two-field operations
                         fieldId1 = (document.getElementById('arithField1') as HTMLSelectElement)?.value;
@@ -986,10 +968,7 @@ const ReportBuilder: React.FC<ReportBuilderProps> = ({ userId, onReportGenerated
                     {config.arithmeticOperations.map((op, idx) => (
                       <li key={idx}>
                         <strong>{op.name}</strong>: {' '}
-                        {config.fields?.find(f => f.id === op.fieldId1)?.label || op.fieldId1} {' '}
-                        {op.operation} {' '}
-                        {config.fields?.find(f => f.id === op.fieldId2)?.label || op.fieldId2}
-                        {' '}→ <em>{op.resultFieldName}</em>
+                        {formatArithmeticOperation(op, config.fields || [])}
                       </li>
                     ))}
                   </ul>

@@ -1,16 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../contexts/AuthContext';
 import Sidebar from '../shared/Sidebar';
 import ReportsService, { ReportsFilter, FormSubmissionWithUserData } from '../../services/reportsService';
 import FormConfigService from '../../services/formConfigService';
-import SubmissionsSummaryCards from './SubmissionsSummaryCards';
-import DynamicReportsTable from './DynamicReportsTable';
-import OfficeService from '../../services/officeService';
 import ReportBuilder from './ReportBuilder';
 import SavedReportsSection from './SavedReportsSection';
-import { ReportConfiguration } from '../../services/reportMetadataService';
 import '../dashboard/Dashboard.css';
 
 // Add CSS for loading spinner animation
@@ -33,23 +29,11 @@ const Reports: React.FC = () => {
   const [userData, setUserData] = useState<any>(null);
   const [submissions, setSubmissions] = useState<FormSubmissionWithUserData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'table' | 'card'>(() => {
-    // Get saved preference from session storage, default to table view for backward compatibility
-    const savedViewMode = sessionStorage.getItem('reports-view-mode');
-    return (savedViewMode === 'card' || savedViewMode === 'table') ? savedViewMode : 'table';
-  });
-  const [filters, setFilters] = useState<ReportsFilter>({
+  const filters: ReportsFilter = {
     limit: 50,
     offset: 0
-  });
+  };
   const [summary, setSummary] = useState<any>(null);
-  const [formIdentifiers, setFormIdentifiers] = useState<string[]>([]);
-
-  // Office dropdown states
-  const [officeOptions, setOfficeOptions] = useState<Array<{label: string, value: string}>>([]);
-  const [officeLoading, setOfficeLoading] = useState(false);
-  const [officeError, setOfficeError] = useState<string>('');
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -66,70 +50,24 @@ const Reports: React.FC = () => {
 
   useEffect(() => {
     fetchInitialData();
-    fetchOfficeNames();
   }, []);
 
   useEffect(() => {
     fetchSubmissions();
-  }, [filters]);
-
-  // Update document title based on view mode
-  useEffect(() => {
-    const baseTitle = 'Reports - Employee Management System';
-    const viewTitle = viewMode === 'table' ? 'Table View' : 'Card View';
-    document.title = `${baseTitle} - ${viewTitle}`;
-
-    // Cleanup on unmount
-    return () => {
-      document.title = baseTitle;
-    };
-  }, [viewMode]);
+  }, []);
 
   const fetchInitialData = async () => {
     try {
-      const [summaryData, identifiers] = await Promise.all([
-        ReportsService.getReportsSummary(),
-        ReportsService.getFormIdentifiers()
-      ]);
+      const summaryData = await ReportsService.getReportsSummary();
       setSummary(summaryData);
-      setFormIdentifiers(identifiers);
     } catch (err) {
       console.error('Error fetching initial data:', err);
     }
   };
 
-  // Fetch office names for dropdown with hierarchical filtering
-  const fetchOfficeNames = useCallback(async () => {
-    if (officeOptions.length > 0 && !officeError) {
-      return; // Already loaded successfully
-    }
-
-    setOfficeLoading(true);
-    setOfficeError('');
-
-    try {
-      console.log('🏢 Reports: Fetching office names for filter dropdown...');
-
-      // Use user-specific filtering for Office Name dropdowns
-      const officeNames = await OfficeService.fetchUserSpecificOfficeNames();
-      const options = OfficeService.officeNamesToOptions(officeNames);
-
-      setOfficeOptions(options);
-      console.log('✅ Reports: Successfully loaded', options.length, 'office options');
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to load office names';
-      setOfficeError(errorMessage);
-      console.error('❌ Reports: Error fetching office names:', error);
-    } finally {
-      setOfficeLoading(false);
-    }
-  }, [officeOptions.length, officeError]);
-
   const fetchSubmissions = async () => {
     try {
       setLoading(true);
-      setError(null);
 
       const data = await ReportsService.getFormSubmissions(filters);
       // console.log('Raw submissions data:', data);
@@ -137,22 +75,9 @@ const Reports: React.FC = () => {
 
     } catch (err) {
       console.error('Error fetching submissions:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch submissions');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFiltersChange = (newFilters: ReportsFilter) => {
-    console.log('🔍 Reports: Applying new filters:', newFilters);
-    setFilters({ ...newFilters, offset: 0 }); // Reset pagination when filters change
-  };
-
-  const handleViewModeChange = (newViewMode: 'table' | 'card') => {
-    setViewMode(newViewMode);
-    // Save preference to session storage
-    sessionStorage.setItem('reports-view-mode', newViewMode);
-    console.log('📊 Reports: View mode changed to:', newViewMode);
   };
 
   const handleExport = async () => {
@@ -174,131 +99,6 @@ const Reports: React.FC = () => {
       console.error('Error exporting data:', err);
       alert('Failed to export data. Please try again.');
     }
-  };
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return {
-      date: date.toLocaleDateString(),
-      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-  };
-
-  const formatReadableData = (data: Record<string, any>) => {
-    // console.log('formatReadableData called with:', data);
-
-    // Since we're dealing with dynamic form fields with generated IDs,
-    // let's create a more intelligent display
-    const displayFields: string[] = [];
-    const entries = Object.entries(data);
-
-    // Filter out empty values and format nicely
-    entries.forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
-        // Skip office name as it's shown separately
-        if (key === 'officeName') return;
-
-        // Format the value based on type and content
-        let formattedValue = value;
-        let fieldDescription = 'Data';
-
-        if (typeof value === 'string' && value.includes('T') && value.includes(':')) {
-          // Looks like a date
-          try {
-            const date = new Date(value);
-            formattedValue = date.toLocaleDateString();
-            fieldDescription = 'Date';
-          } catch (e) {
-            // Keep original value if date parsing fails
-          }
-        } else if (typeof value === 'string' && (value.includes(' BO') || value.includes(' SO') || value.includes(' RO'))) {
-          // This is an office name
-          fieldDescription = 'Office';
-          formattedValue = value;
-        } else if (typeof value === 'string' && value.length > 10 && !value.includes(' ')) {
-          // Long string without spaces might be an ID
-          fieldDescription = 'ID';
-          formattedValue = value.length > 15 ? `${value.substring(0, 15)}...` : value;
-        } else if (typeof value === 'number' || !isNaN(Number(value))) {
-          // Numeric value
-          fieldDescription = 'Value';
-          formattedValue = value;
-        } else if (typeof value === 'string' && value.length < 50) {
-          // Short text might be a name or description
-          fieldDescription = 'Text';
-          formattedValue = value;
-        }
-
-        displayFields.push(`${fieldDescription}: ${formattedValue}`);
-      }
-    });
-
-    // Limit to first 3 fields to avoid clutter
-    const limitedFields = displayFields.slice(0, 3);
-    const result = limitedFields.length > 0
-      ? limitedFields.join(', ') + (displayFields.length > 3 ? '...' : '')
-      : 'Form submission data';
-
-    // console.log('Final result:', result);
-    return result;
-  };
-
-  const getFormTypeDisplay = (formIdentifier: string) => {
-    const formTypes: Record<string, string> = {
-      'employee-registration': 'Employee Registration',
-      'leave-request': 'Leave Request',
-      'expense-report': 'Expense Report',
-      'performance-review': 'Performance Review',
-      'it-support-request': 'IT Support Request',
-      'training-registration': 'Training Registration',
-      'feedback-form': 'Feedback Form',
-      'inventory-request': 'Inventory Request'
-    };
-    return formTypes[formIdentifier] || formIdentifier.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-  };
-
-  const getUserDisplayName = (submission: FormSubmissionWithUserData) => {
-    // console.log('getUserDisplayName called with submission:', submission);
-
-    // Try to get name from submission data
-    const data = submission.submission_data;
-    // console.log('Submission data:', data);
-
-    // Since we're dealing with dynamic fields, look for text values that might be names
-    const entries = Object.entries(data);
-
-    // Look for string values that might be names (not dates, not numbers, not office names)
-    for (const [key, value] of entries) {
-      if (typeof value === 'string' && value.length > 2 && value.length < 50) {
-        // Skip if it looks like a date
-        if (value.includes('T') && value.includes(':')) continue;
-        // Skip if it's just a number
-        if (!isNaN(Number(value))) continue;
-        // Skip office name field
-        if (key === 'officeName') continue;
-        // Skip if it looks like an office name (contains BO, SO, RO, etc.)
-        if (value.includes(' BO') || value.includes(' SO') || value.includes(' RO') ||
-            value.includes(' HO') || value.includes(' DO') || value.includes('Office')) continue;
-
-        // This might be a name - use it
-        // console.log('Found potential name:', value);
-        return value;
-      }
-    }
-
-    // Look for the form identifier to create a more meaningful name
-    const formType = getFormTypeDisplay(submission.form_identifier);
-
-    // Fallback to user_id or form-based name
-    if (submission.user_id) {
-      const fallback = `${formType} User ${submission.user_id.substring(0, 8)}`;
-      // console.log('Using form-based fallback:', fallback);
-      return fallback;
-    }
-
-    const fallback = `${formType} Submitter`;
-    // console.log('Using generic fallback:', fallback);
-    return fallback;
   };
 
   return (
@@ -349,7 +149,7 @@ const Reports: React.FC = () => {
                   user_office: sub.user_office,
                   submission_data_office: sub.submission_data?.officeName,
                   all_submission_fields: Object.keys(sub.submission_data || {}),
-                  office_fields: Object.entries(sub.submission_data || {}).filter(([key, value]) =>
+                  office_fields: Object.entries(sub.submission_data || {}).filter(([, value]) =>
                     typeof value === 'string' && (
                       value.includes(' RO') || value.includes(' BO') || value.includes(' SO') ||
                       value.includes(' HO') || value.includes(' DO') || value.includes('Office')
@@ -405,153 +205,13 @@ const Reports: React.FC = () => {
         {/* Report Builder */}
         <ReportBuilder 
           userId={currentUser?.uid || ''}
-          onReportGenerated={(data, config) => {
+          onReportGenerated={(data) => {
             setSubmissions(data);
           }}
         />
 
         {/* Saved Reports Section */}
         <SavedReportsSection userId={currentUser?.uid || ''} />
-
-        {/* View Toggle Controls */}
-        <div style={{
-          background: 'white',
-          padding: '1rem 1.5rem',
-          borderRadius: '8px',
-          marginBottom: '1rem',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div>
-            <h5 style={{ margin: 0, color: '#333' }}>📊 Submission Data</h5>
-            <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.875rem', color: '#666' }}>
-              {viewMode === 'table'
-                ? 'Detailed table view with all submission fields and data'
-                : 'Summary view showing completion status by office'}
-            </p>
-          </div>
-
-          {/* View Mode Toggle */}
-          <div style={{
-            display: 'flex',
-            backgroundColor: '#f8f9fa',
-            borderRadius: '6px',
-            padding: '4px',
-            border: '1px solid #dee2e6'
-          }}>
-            <button
-              style={{
-                padding: '0.5rem 1rem',
-                border: 'none',
-                borderRadius: '4px',
-                backgroundColor: viewMode === 'table' ? '#007bff' : 'transparent',
-                color: viewMode === 'table' ? 'white' : '#6c757d',
-                fontWeight: viewMode === 'table' ? '600' : '400',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.875rem'
-              }}
-              onClick={() => handleViewModeChange('table')}
-              onMouseEnter={(e) => {
-                if (viewMode !== 'table') {
-                  e.currentTarget.style.backgroundColor = '#e9ecef';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (viewMode !== 'table') {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }
-              }}
-              title="View submissions in a detailed table format with sortable columns"
-            >
-              📋 Table View
-            </button>
-            <button
-              style={{
-                padding: '0.5rem 1rem',
-                border: 'none',
-                borderRadius: '4px',
-                backgroundColor: viewMode === 'card' ? '#007bff' : 'transparent',
-                color: viewMode === 'card' ? 'white' : '#6c757d',
-                fontWeight: viewMode === 'card' ? '600' : '400',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontSize: '0.875rem'
-              }}
-              onClick={() => handleViewModeChange('card')}
-              onMouseEnter={(e) => {
-                if (viewMode !== 'card') {
-                  e.currentTarget.style.backgroundColor = '#e9ecef';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (viewMode !== 'card') {
-                  e.currentTarget.style.backgroundColor = 'transparent';
-                }
-              }}
-              title="View submissions as summary cards showing completion status"
-            >
-              📊 Card View
-            </button>
-          </div>
-        </div>
-
-        {/* Dynamic Reports Content */}
-        <div style={{
-          background: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          overflow: 'hidden'
-        }}>
-          {error && (
-            <div style={{
-              padding: '1rem',
-              backgroundColor: '#f8d7da',
-              color: '#721c24',
-              borderBottom: '1px solid #f5c6cb'
-            }}>
-              ⚠️ {error}
-              <button
-                style={{
-                  marginLeft: '1rem',
-                  padding: '0.25rem 0.5rem',
-                  backgroundColor: '#dc3545',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px'
-                }}
-                onClick={fetchSubmissions}
-              >
-                Retry
-              </button>
-            </div>
-          )}
-
-          {/* Conditional rendering based on view mode */}
-          {viewMode === 'table' ? (
-            <DynamicReportsTable
-              submissions={submissions}
-              loading={loading}
-              onRefresh={fetchSubmissions}
-              isAdmin={userData?.role === 'admin' || userData?.role === 'master_admin'}
-            />
-          ) : (
-            <SubmissionsSummaryCards
-              submissions={submissions}
-              loading={loading}
-              onRefresh={fetchSubmissions}
-              filters={filters}
-            />
-          )}
-        </div>
       </div>
     </div>
   );

@@ -311,6 +311,20 @@ const SimpleReports: React.FC<SimpleReportsProps> = () => {
   const formatFieldValue = (value: any): string => {
     if (value === null || value === undefined) return '';
     if (typeof value === 'object') return JSON.stringify(value);
+    
+    // Check if value is a date string (ISO format)
+    if (typeof value === 'string' && value.includes('T') && value.includes(':')) {
+      try {
+        const date = new Date(value);
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const year = date.getFullYear();
+        return `${day}/${month}/${year}`;
+      } catch (e) {
+        return String(value);
+      }
+    }
+    
     return String(value);
   };
 

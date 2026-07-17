@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReportMetadataService, { ReportConfiguration } from '../../services/reportMetadataService';
 import ReportsService from '../../services/reportsService';
+import { evaluateArithmeticOperation } from '../../utils/reportArithmetic';
 import './SavedReportsSection.css';
 
 // Helper function to format field IDs to human-readable labels
@@ -34,6 +35,59 @@ const getFieldDisplayLabel = (key: string, fields?: { id: string; label: string 
   
   // Fall back to formatting the key
   return formatFieldLabel(key);
+};
+
+const formatDateToDDMMYYYY = (value: string): string => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
+const isSubmissionDateField = (key: string, fields?: { id: string; label: string }[]): boolean => {
+  const displayLabel = getFieldDisplayLabel(key, fields).trim().toLowerCase();
+  return key === 'submitted_at' || displayLabel === 'submission date' || displayLabel === 'submitted date';
+};
+
+const isDateLikeValue = (value: unknown): value is string => {
+  if (typeof value !== 'string') {
+    return false;
+  }
+
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return false;
+  }
+
+  const isoDatePattern = /^\d{4}-\d{2}-\d{2}$/;
+  const isoDateTimePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+
+  return isoDatePattern.test(trimmedValue) || isoDateTimePattern.test(trimmedValue);
+};
+
+const formatGeneratedValue = (
+  key: string,
+  value: unknown,
+  fields?: { id: string; label: string }[]
+): string => {
+  if (value === null || value === undefined || value === '') {
+    return '-';
+  }
+
+  if (typeof value === 'number') {
+    return value.toLocaleString();
+  }
+
+  if (isDateLikeValue(value) && !isSubmissionDateField(key, fields)) {
+    return formatDateToDDMMYYYY(value);
+  }
+
+  return String(value);
 };
 
 interface SavedReportsSectionProps {
@@ -92,7 +146,7 @@ const SavedReportsSection: React.FC<SavedReportsSectionProps> = ({ userId }) => 
     const csvContent = [
       headerLabels.join(','),
       ...data.map(row => headers.map(h => {
-        const val = row[h];
+        const val = formatGeneratedValue(h, row[h], report?.fields);
         // Escape values containing commas or quotes
         const strVal = String(val ?? '');
         if (strVal.includes(',') || strVal.includes('"') || strVal.includes('\n')) {
@@ -147,14 +201,14 @@ const SavedReportsSection: React.FC<SavedReportsSectionProps> = ({ userId }) => 
         </head>
         <body>
           <h1>Report Export</h1>
-          <p class="meta">Generated on: ${new Date().toLocaleString()}</p>
+          <p class="meta">Generated on: ${formatDateToDDMMYYYY(new Date().toISOString())}</p>
           <p class="meta">Total Records: ${data.length}</p>
           <table>
             <thead>
               <tr>${headerLabels.map(h => `<th>${h}</th>`).join('')}</tr>
             </thead>
             <tbody>
-              ${data.map(row => `<tr>${headers.map(h => `<td>${row[h] ?? ''}</td>`).join('')}</tr>`).join('')}
+              ${data.map(row => `<tr>${headers.map(h => `<td>${formatGeneratedValue(h, row[h], report?.fields)}</td>`).join('')}</tr>`).join('')}
             </tbody>
           </table>
         </body>
@@ -203,7 +257,7 @@ const SavedReportsSection: React.FC<SavedReportsSectionProps> = ({ userId }) => 
       
       // Apply arithmetic operations if configured
       if (report.arithmeticOperations && report.arithmeticOperations.length > 0) {
-        submissions = applyArithmeticOperations(submissions, report.arithmeticOperations);
+        submissions = applyArithmeticOperations(submissions, report.arithmeticOperations, report.fields || []);
       }
       
       // Apply aggregations if configured
@@ -295,66 +349,12 @@ const SavedReportsSection: React.FC<SavedReportsSectionProps> = ({ userId }) => 
     });
   };
 
-  const applyArithmeticOperations = (data: any[], operations: any[]) => {
+  const applyArithmeticOperations = (data: any[], operations: any[], fields: ReportConfiguration['fields']) => {
     return data.map(item => {
       const newItem = { ...item, submission_data: { ...item.submission_data } };
       
       operations.forEach(op => {
-        let result = 0;
-        
-        switch (op.operation) {
-          case 'add': {
-            const val1 = parseFloat(item.submission_data?.[op.fieldId1] || item[op.fieldId1]) || 0;
-            const val2 = parseFloat(item.submission_data?.[op.fieldId2] || item[op.fieldId2]) || 0;
-            result = val1 + val2;
-            break;
-          }
-          case 'subtract': {
-            const val1 = parseFloat(item.submission_data?.[op.fieldId1] || item[op.fieldId1]) || 0;
-            const val2 = parseFloat(item.submission_data?.[op.fieldId2] || item[op.fieldId2]) || 0;
-            result = val1 - val2;
-            break;
-          }
-          case 'multiply': {
-            const val1 = parseFloat(item.submission_data?.[op.fieldId1] || item[op.fieldId1]) || 0;
-            const val2 = parseFloat(item.submission_data?.[op.fieldId2] || item[op.fieldId2]) || 0;
-            result = val1 * val2;
-            break;
-          }
-          case 'divide': {
-            const val1 = parseFloat(item.submission_data?.[op.fieldId1] || item[op.fieldId1]) || 0;
-            const val2 = parseFloat(item.submission_data?.[op.fieldId2] || item[op.fieldId2]) || 0;
-            result = val2 !== 0 ? val1 / val2 : 0;
-            break;
-          }
-          case 'sum': {
-            // Sum multiple fields - fieldId1 contains comma-separated field IDs
-            const fieldIds = op.fieldId1.split(',').map((id: string) => id.trim());
-            result = fieldIds.reduce((sum: number, fieldId: string) => {
-              const val = parseFloat(item.submission_data?.[fieldId] || item[fieldId]) || 0;
-              return sum + val;
-            }, 0);
-            break;
-          }
-          case 'custom': {
-            // Custom formula calculation
-            if (op.customFormula) {
-              try {
-                // Replace field references [fieldName] with actual values
-                const formula = op.customFormula.replace(/\[([^\]]+)\]/g, (match: string, fieldName: string) => {
-                  const value = parseFloat(item.submission_data?.[fieldName] || item[fieldName]) || 0;
-                  return value.toString();
-                });
-                // Safely evaluate the formula
-                result = Function('"use strict"; return (' + formula + ')')();
-              } catch (e) {
-                console.error('Error evaluating custom formula:', e);
-                result = 0;
-              }
-            }
-            break;
-          }
-        }
+        const result = evaluateArithmeticOperation(newItem, op, fields || []);
         
         // Add the computed value to the item
         newItem.submission_data[op.resultFieldName] = result;
@@ -448,7 +448,7 @@ const SavedReportsSection: React.FC<SavedReportsSectionProps> = ({ userId }) => 
             
             <div className="saved-report-footer">
               <span className="saved-date">
-                Saved: {new Date(report.updatedAt).toLocaleDateString()}
+                Saved: {formatDateToDDMMYYYY(report.updatedAt)}
               </span>
               <button
                 className="generate-btn"
@@ -512,14 +512,7 @@ const SavedReportsSection: React.FC<SavedReportsSectionProps> = ({ userId }) => 
                       const isArithmeticResult = selectedReport?.arithmeticOperations?.some(
                         op => op.resultFieldName === key
                       );
-                      
-                      // Format values nicely
-                      let displayValue = String(val);
-                      if (val === null || val === undefined || val === '') {
-                        displayValue = '-';
-                      } else if (typeof val === 'number') {
-                        displayValue = val.toLocaleString();
-                      }
+                      const displayValue = formatGeneratedValue(key, val, selectedReport?.fields);
                       return (
                         <td 
                           key={i} 

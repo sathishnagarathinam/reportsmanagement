@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaHome, FaFolder, FaEnvelope, FaBell, FaMapMarkerAlt, FaChartBar, FaSignOutAlt, FaArrowLeft, FaUsersCog, FaUser } from 'react-icons/fa';
+import { FaHome, FaFolder, FaEnvelope, FaBell, FaMapMarkerAlt, FaChartBar, FaSignOutAlt, FaArrowLeft, FaUsersCog, FaUser, FaDatabase } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface SidebarProps {
@@ -11,6 +11,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userData }) => {
   const { currentUser, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const normalizedRole = typeof userData?.role === 'string' ? userData.role.trim().toLowerCase() : '';
 
   const handleLogout = async () => {
     try {
@@ -55,12 +56,17 @@ const Sidebar: React.FC<SidebarProps> = ({ userData }) => {
         <a href="#" className={`nav-item ${isActive('/profile') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/profile'); }}>
           {React.createElement(FaUser as React.ComponentType<any>)} <span>profile</span>
         </a>
-        {userData?.role === 'master_admin' && (
+        {normalizedRole === 'master_admin' && (
+          <a href="#" className={`nav-item ${isActive('/master-data') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/master-data'); }}>
+            {React.createElement(FaDatabase as React.ComponentType<any>)} <span>master data</span>
+          </a>
+        )}
+        {normalizedRole === 'master_admin' && (
           <a href="#" className={`nav-item ${isActive('/master-admin') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/master-admin'); }}>
             {React.createElement(FaUsersCog as React.ComponentType<any>)} <span>master admin</span>
           </a>
         )}
-        {userData?.role === 'admin' && (
+        {normalizedRole === 'admin' && (
           <a href="#" className={`nav-item ${isActive('/admin') ? 'active' : ''}`} onClick={(e) => { e.preventDefault(); handleNavigation('/admin'); }}>
             {React.createElement(FaUsersCog as React.ComponentType<any>)} <span>admin</span>
           </a>
